@@ -1,14 +1,15 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter_oss_manager/src/known_licenses_data.dart';
 import 'package:path/path.dart' as p;
 import 'package:yaml/yaml.dart';
 
 import '../oss_licenses.dart';
+import 'models/all_licenses.dart';
+import 'models/template_license_info.dart';
 
 class LicenseGenerator {
-  final Map<String, String> _knownLicenses = knownLicensesData;
+  final Map<String, TemplateLicenseInfo> _licensesMap = allLicenses;
   static const List<String> _licenseFileNames = [
     'LICENSE',
     'LICENSE.txt',
@@ -52,44 +53,20 @@ class LicenseGenerator {
     return text;
   }
 
-  String? _runHeuristics(String licenseContent) {
-    final lowerCaseText = licenseContent.toLowerCase();
-
-    // MIT Heuristic
-    if (lowerCaseText.contains('permission is hereby granted') &&
-        lowerCaseText.contains('the software is provided "as is"')) {
-      return 'MIT';
-    }
-    // BSD-3-Clause Heuristic
-    if (lowerCaseText
-            .contains('redistribution and use in source and binary forms') &&
-        lowerCaseText.contains(
-            'neither the name of the copyright holder nor the names of its contributors may be used')) {
-      return 'BSD-3-Clause';
-    }
-    // Apache 2.0 Heuristic
-    if (lowerCaseText.contains('apache license, version 2.0') &&
-        lowerCaseText.contains(
-            'terms and conditions for use, reproduction, and distribution')) {
-      return 'Apache-2.0';
-    }
-    // ISC Heuristic
-    if (lowerCaseText.contains(
-        'permission to use, copy, modify, and/or distribute this software for any purpose')) {
-      return 'ISC';
-    }
-
-    return null;
-  }
-
   String _summarizeLicense(String licenseContent) {
-    // Step 1: Run conservative heuristics for a quick and accurate match.
-    final heuristicMatch = _runHeuristics(licenseContent);
-    if (heuristicMatch != null) {
-      return heuristicMatch;
+    // Step 1: 휴리스틱 매칭 시도 (우선순위 순)
+    final licensesByPriority = getLicensesByPriority();
+
+    for (final licenseInfo in licensesByPriority) {
+      if (licenseInfo.matchesHeuristic(licenseContent)) {
+        print('  Matched via heuristic: ${licenseInfo.licenseId}');
+        return licenseInfo.licenseId;
+      }
     }
 
-    // Step 2: If no heuristic match, proceed with paragraph-based similarity.
+    // Step 2: 휴리스틱 매칭이 실패한 경우, 기존 유사도 기반 매칭 사용
+    print('  No heuristic match found, trying similarity matching...');
+
     final scannedParagraphs = _normalizeText(licenseContent)
         .split(RegExp(r'\n\s*\n'))
         .where((p) => p.isNotEmpty)
@@ -101,8 +78,8 @@ class LicenseGenerator {
     String bestMatch = 'Unknown';
     double highestAverageSimilarity = 0.0;
 
-    for (final knownLicenseEntry in _knownLicenses.entries) {
-      final templateParagraphs = _normalizeText(knownLicenseEntry.value)
+    for (final licenseEntry in _licensesMap.entries) {
+      final templateParagraphs = _normalizeText(licenseEntry.value.licenseText)
           .split(RegExp(r'\n\s*\n'))
           .where((p) => p.isNotEmpty)
           .toList();
@@ -132,15 +109,19 @@ class LicenseGenerator {
 
       if (averageSimilarity > highestAverageSimilarity) {
         highestAverageSimilarity = averageSimilarity;
-        bestMatch = knownLicenseEntry.key;
+        bestMatch = licenseEntry.key;
       }
     }
 
-    // Step 4: Final determination based on the new threshold.
+    // Step 3: 최종 결정
     if (highestAverageSimilarity > 0.5) {
+      print(
+          '  Matched via similarity: $bestMatch (${(highestAverageSimilarity * 100).toStringAsFixed(1)}%)');
       return bestMatch;
     }
 
+    print(
+        '  No match found (best similarity: ${(highestAverageSimilarity * 100).toStringAsFixed(1)}%)');
     return 'Unknown';
   }
 
