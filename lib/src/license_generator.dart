@@ -1,10 +1,10 @@
 import 'dart:io';
 import 'dart:math';
-import 'dart:convert'; // Import for jsonEncode
+import 'dart:convert';
 import 'package:yaml/yaml.dart';
-import 'package:path/path.dart' as p; // Import path package
-import 'dart:isolate'; // Import Isolate
-import 'package:flutter_oss_manager/src/known_licenses_data.dart'; // Import known licenses data
+import 'package:path/path.dart' as p;
+import 'dart:isolate';
+import 'package:flutter_oss_manager/src/known_licenses_data.dart';
 
 class OssLicense {
   final String name;
@@ -25,7 +25,7 @@ class OssLicense {
 }
 
 class LicenseGenerator {
-  final Map<String, String> _knownLicenses = knownLicensesData; // Initialize directly
+  final Map<String, String> _knownLicenses = knownLicensesData;
   static const List<String> _licenseFileNames = [
     'LICENSE',
     'LICENSE.txt',
@@ -35,33 +35,108 @@ class LicenseGenerator {
     'LICENCE.txt',
   ];
 
-  // Removed _loadKnownLicenses() method
-
   String _readLicenseFile(String filePath) {
-    final file = File(filePath);
-    return file.readAsStringSync();
+    return File(filePath).readAsStringSync();
   }
 
   Set<String> _tokenize(String text) {
-    // Simple tokenization: convert to lowercase and split by non-alphanumeric characters
     return text.toLowerCase().split(RegExp(r'[^a-z0-9]+')).where((s) => s.isNotEmpty).toSet();
   }
 
-  double _calculateJaccardSimilarity(String text1, String text2) {
-    final set1 = _tokenize(text1);
-    final set2 = _tokenize(text2);
-
-    if (set1.isEmpty && set2.isEmpty) {
-      return 1.0; // Both empty, considered identical
-    }
-    if (set1.isEmpty || set2.isEmpty) {
-      return 0.0; // One empty, one not, considered dissimilar
-    }
+  double _calculateJaccardSimilarity(Set<String> set1, Set<String> set2) {
+    if (set1.isEmpty && set2.isEmpty) return 1.0;
+    if (set1.isEmpty || set2.isEmpty) return 0.0;
 
     final intersection = set1.intersection(set2).length;
     final union = set1.union(set2).length;
 
     return intersection / union;
+  }
+
+  String _normalizeText(String text) {
+    // Remove copyright lines and email addresses
+    text = text.replaceAll(RegExp(r'copyright \(c\) .+', caseSensitive: false, multiLine: true), '');
+    text = text.replaceAll(RegExp(r'<[^>]+>'), ''); // Remove text in angle brackets like emails
+    // Standardize whitespace
+    text = text.replaceAll(RegExp(r'\s+'), ' ').trim();
+    return text;
+  }
+
+  String? _runHeuristics(String licenseContent) {
+    final lowerCaseText = licenseContent.toLowerCase();
+
+    // MIT Heuristic
+    if (lowerCaseText.contains('permission is hereby granted') && lowerCaseText.contains('the software is provided "as is"')) {
+      return 'MIT';
+    }
+    // BSD-3-Clause Heuristic
+    if (lowerCaseText.contains('redistribution and use in source and binary forms') && lowerCaseText.contains('neither the name of the copyright holder nor the names of its contributors may be used')) {
+      return 'BSD-3-Clause';
+    }
+    // Apache 2.0 Heuristic
+    if (lowerCaseText.contains('apache license, version 2.0') && lowerCaseText.contains('terms and conditions for use, reproduction, and distribution')) {
+      return 'Apache-2.0';
+    }
+    // ISC Heuristic
+    if (lowerCaseText.contains('permission to use, copy, modify, and/or distribute this software for any purpose')) {
+      return 'ISC';
+    }
+
+    return null;
+  }
+
+  String _summarizeLicense(String licenseContent) {
+    // Step 1: Run conservative heuristics for a quick and accurate match.
+    final heuristicMatch = _runHeuristics(licenseContent);
+    if (heuristicMatch != null) {
+      return heuristicMatch;
+    }
+
+    // Step 2: If no heuristic match, proceed with paragraph-based similarity.
+    final scannedParagraphs = _normalizeText(licenseContent).split(RegExp(r'\n\s*\n')).where((p) => p.isNotEmpty).toList();
+    if (scannedParagraphs.isEmpty) {
+      return 'Unknown';
+    }
+
+    String bestMatch = 'Unknown';
+    double highestAverageSimilarity = 0.0;
+
+    for (final knownLicenseEntry in _knownLicenses.entries) {
+      final templateParagraphs = _normalizeText(knownLicenseEntry.value).split(RegExp(r'\n\s*\n')).where((p) => p.isNotEmpty).toList();
+      if (templateParagraphs.isEmpty) {
+        continue;
+      }
+
+      final templateParagraphTokens = templateParagraphs.map(_tokenize).toList();
+      double totalSimilarity = 0;
+
+      for (final scannedParagraph in scannedParagraphs) {
+        final scannedTokens = _tokenize(scannedParagraph);
+        double maxSimilarityForParagraph = 0;
+
+        for (final templateTokens in templateParagraphTokens) {
+          final similarity = _calculateJaccardSimilarity(scannedTokens, templateTokens);
+          if (similarity > maxSimilarityForParagraph) {
+            maxSimilarityForParagraph = similarity;
+          }
+        }
+        totalSimilarity += maxSimilarityForParagraph;
+      }
+
+      final averageSimilarity = totalSimilarity / scannedParagraphs.length;
+
+      if (averageSimilarity > highestAverageSimilarity) {
+        highestAverageSimilarity = averageSimilarity;
+        bestMatch = knownLicenseEntry.key;
+      }
+    }
+
+    // Step 4: Final determination based on the new threshold.
+    if (highestAverageSimilarity > 0.5) {
+      return bestMatch;
+    }
+
+    return 'Unknown';
   }
 
   void _writeDartFile(String outputPath, List<OssLicense> ossLicenses) {
@@ -106,55 +181,28 @@ class LicenseGenerator {
   }
 
   void generateLicenses({String? licenseFilePath, String? outputFilePath}) {
-    print('Generating licenses...');
-    if (licenseFilePath != null) {
-      final licenseContent = _readLicenseFile(licenseFilePath);
-      print('License content:\n$licenseContent');
-
-      String bestMatch = 'Unknown';
-      double highestSimilarity = 0.0;
-
-      for (final entry in _knownLicenses.entries) {
-        final similarity = _calculateJaccardSimilarity(licenseContent, entry.value);
-        print('Similarity with ${entry.key}: ${similarity.toStringAsFixed(4)}');
-        if (similarity > highestSimilarity) {
-          highestSimilarity = similarity;
-          bestMatch = entry.key;
-        }
-      }
-
-      String licenseSummary = 'Unknown';
-      if (highestSimilarity > 0.7) { // Adjust threshold as needed
-        licenseSummary = bestMatch;
-        print('License summary: $bestMatch (Similarity: ${highestSimilarity.toStringAsFixed(4)})');
-      } else {
-        print('License summary: Unknown (No confident match found. Highest similarity: ${highestSimilarity.toStringAsFixed(4)})');
-      }
-
-      if (outputFilePath != null) {
-        _writeDartFile(outputFilePath, [OssLicense(name: 'Manual License', version: '0.0.0', licenseText: licenseContent, licenseSummary: licenseSummary, repositoryUrl: null, description: null)]);
-      } else {
-        print('No output file path provided. Skipping .dart file generation.');
-      }
-    } else {
-      print('No license file path provided.');
+    if (licenseFilePath == null) {
+      print('Error: License file path must be provided for the generate command.');
+      return;
     }
+    final licenseContent = _readLicenseFile(licenseFilePath);
+    final licenseSummary = _summarizeLicense(licenseContent);
+
+    final license = OssLicense(
+      name: p.basenameWithoutExtension(licenseFilePath),
+      version: 'N/A',
+      licenseText: licenseContent,
+      licenseSummary: licenseSummary,
+    );
+
+    _writeDartFile(outputFilePath ?? 'lib/oss_licenses.dart', [license]);
   }
 
   Future<void> scanPackages({String? outputFilePath}) async {
     print('Scanning packages for licenses...');
-    final pubspecFile = File('pubspec.yaml');
-    if (!pubspecFile.existsSync()) {
-      print('Error: pubspec.yaml not found in the current directory.');
-      return;
-    }
-
-    final pubspecContent = pubspecFile.readAsStringSync();
-    final yamlMap = loadYaml(pubspecContent) as YamlMap;
-
-    final pubspecLockFile = File('pubspec.lock');
+    final pubspecLockFile = File(p.join(Directory.current.path, 'pubspec.lock'));
     if (!pubspecLockFile.existsSync()) {
-      print('Error: pubspec.lock not found in the current directory. Run \'flutter pub get\' first.');
+      print('Error: pubspec.lock not found. Run \'flutter pub get\' first.');
       return;
     }
     final pubspecLockContent = pubspecLockFile.readAsStringSync();
@@ -188,84 +236,36 @@ class LicenseGenerator {
     }
 
     if (outputFilePath != null) {
-      _writeDartFile(outputFilePath, collectedLicenses);
+      _writeDartFile(p.join(Directory.current.path, outputFilePath), collectedLicenses);
     } else {
       print('No output file path provided. Skipping .dart file generation.');
     }
   }
 
-  String? _getPackageVersionFromLockfile(YamlMap pubspecLockMap, String packageName) {
-    final packages = pubspecLockMap['packages'] as YamlMap?;
-    if (packages != null && packages.containsKey(packageName)) {
-      final packageInfo = packages[packageName] as YamlMap?;
-      if (packageInfo != null && packageInfo.containsKey('version')) {
-        return packageInfo['version'].toString();
-      }
-    }
-    return null;
-  }
-
   Future<OssLicense?> _findAndSummarizeHostedLicense(String packageName, String packageVersion) async {
-    final pubCacheDir = Platform.environment['LOCALAPPDATA']! + '\\Pub\\Cache';
-    final packagePath = '$pubCacheDir\\hosted\\pub.dev\\$packageName-$packageVersion';
-    print('  Searching for license in: $packagePath');
+    final pubCacheDir = _getPubCacheDir();
+    final packagePath = p.join(pubCacheDir, 'hosted', 'pub.dev', '$packageName-$packageVersion');
 
     String? repositoryUrl;
     String? description;
-    final packagePubspecFile = File('$packagePath\\pubspec.yaml');
+    final packagePubspecFile = File(p.join(packagePath, 'pubspec.yaml'));
     if (packagePubspecFile.existsSync()) {
       final packagePubspecContent = packagePubspecFile.readAsStringSync();
       final packageYamlMap = loadYaml(packagePubspecContent) as YamlMap;
-      repositoryUrl = packageYamlMap['repository']?.toString() ?? packageYamlMap['homepage']?.toString(); // Prioritize repository
+      repositoryUrl = packageYamlMap['repository']?.toString() ?? packageYamlMap['homepage']?.toString();
       description = packageYamlMap['description']?.toString();
     }
 
-    final searchPaths = [
-      packagePath,
-      '$packagePath\\lib',
-      '$packagePath\\doc',
-    ];
-
-    for (final path in searchPaths) {
-      for (final fileName in _licenseFileNames) {
-        final licenseFilePath = '$path\\$fileName';
-        final licenseFile = File(licenseFilePath);
-        if (licenseFile.existsSync()) {
-          final licenseContent = licenseFile.readAsStringSync();
-          String bestMatch = 'Unknown';
-          double highestSimilarity = 0.0;
-
-          for (final entry in _knownLicenses.entries) {
-            final similarity = _calculateJaccardSimilarity(licenseContent, entry.value);
-            if (similarity > highestSimilarity) {
-              highestSimilarity = similarity;
-              bestMatch = entry.key;
-            }
-          }
-
-          String licenseSummary = 'Unknown';
-          if (highestSimilarity > 0.7) {
-            licenseSummary = bestMatch;
-          }
-          return OssLicense(name: packageName, version: packageVersion, licenseText: licenseContent, licenseSummary: licenseSummary, repositoryUrl: repositoryUrl, description: description);
-        }
+    for (final fileName in _licenseFileNames) {
+      final licenseFilePath = p.join(packagePath, fileName);
+      final licenseFile = File(licenseFilePath);
+      if (licenseFile.existsSync()) {
+        final licenseContent = licenseFile.readAsStringSync();
+        final licenseSummary = _summarizeLicense(licenseContent);
+        return OssLicense(name: packageName, version: packageVersion, licenseText: licenseContent, licenseSummary: licenseSummary, repositoryUrl: repositoryUrl, description: description);
       }
     }
     print('  No license file found for $packageName');
-    return null;
-  }
-
-  Future<String?> _getFlutterSdkPath() async {
-    try {
-      final executable = Platform.isWindows ? 'flutter.bat' : 'flutter';
-      final result = await Process.run(executable, ['--version', '--machine']);
-      if (result.exitCode == 0) {
-        final jsonOutput = jsonDecode(result.stdout.toString());
-        return jsonOutput['flutterRoot'];
-      }
-    } catch (e) {
-      print('Error getting Flutter SDK path: $e');
-    }
     return null;
   }
 
@@ -276,12 +276,12 @@ class LicenseGenerator {
       return null;
     }
 
-    final licenseFilePath = '$flutterSdkPath\\LICENSE';
+    final licenseFilePath = p.join(flutterSdkPath, 'LICENSE');
     final licenseFile = File(licenseFilePath);
 
     String? repositoryUrl;
     String? description;
-    String sdkVersion = '0.0.0'; // Default SDK version
+    String sdkVersion = '0.0.0';
 
     try {
       final result = await Process.run(Platform.isWindows ? 'flutter.bat' : 'flutter', ['--version', '--machine']);
@@ -306,24 +306,32 @@ class LicenseGenerator {
 
     if (licenseFile.existsSync()) {
       final licenseContent = licenseFile.readAsStringSync();
-      String bestMatch = 'Unknown';
-      double highestSimilarity = 0.0;
-
-      for (final entry in _knownLicenses.entries) {
-        final similarity = _calculateJaccardSimilarity(licenseContent, entry.value);
-        if (similarity > highestSimilarity) {
-          highestSimilarity = similarity;
-          bestMatch = entry.key;
-        }
-      }
-
-      String licenseSummary = 'Unknown';
-      if (highestSimilarity > 0.7) {
-        licenseSummary = bestMatch;
-      }
+      final licenseSummary = _summarizeLicense(licenseContent);
       return OssLicense(name: packageName, version: sdkVersion, licenseText: licenseContent, licenseSummary: licenseSummary, repositoryUrl: repositoryUrl, description: description);
     }
     print('  No license file found for SDK package: $packageName');
+    return null;
+  }
+
+  String _getPubCacheDir() {
+    if (Platform.isWindows) {
+      return p.join(Platform.environment['LOCALAPPDATA']!, 'Pub', 'Cache');
+    } else {
+      return p.join(Platform.environment['HOME']!, '.pub-cache');
+    }
+  }
+
+  Future<String?> _getFlutterSdkPath() async {
+    try {
+      final executable = Platform.isWindows ? 'flutter.bat' : 'flutter';
+      final result = await Process.run(executable, ['--version', '--machine']);
+      if (result.exitCode == 0) {
+        final jsonOutput = jsonDecode(result.stdout.toString());
+        return jsonOutput['flutterRoot'];
+      }
+    } catch (e) {
+      print('Error getting Flutter SDK path: $e');
+    }
     return null;
   }
 }
