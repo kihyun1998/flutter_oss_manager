@@ -1,28 +1,11 @@
-import 'dart:io';
-import 'dart:math';
 import 'dart:convert';
-import 'package:yaml/yaml.dart';
-import 'package:path/path.dart' as p;
-import 'dart:isolate';
+import 'dart:io';
+
 import 'package:flutter_oss_manager/src/known_licenses_data.dart';
+import 'package:path/path.dart' as p;
+import 'package:yaml/yaml.dart';
 
-class OssLicense {
-  final String name;
-  final String version;
-  final String licenseText;
-  final String licenseSummary;
-  final String? repositoryUrl;
-  final String? description;
-
-  const OssLicense({
-    required this.name,
-    required this.version,
-    required this.licenseText,
-    required this.licenseSummary,
-    this.repositoryUrl,
-    this.description,
-  });
-}
+import '../oss_licenses.dart';
 
 class LicenseGenerator {
   final Map<String, String> _knownLicenses = knownLicensesData;
@@ -40,7 +23,11 @@ class LicenseGenerator {
   }
 
   Set<String> _tokenize(String text) {
-    return text.toLowerCase().split(RegExp(r'[^a-z0-9]+')).where((s) => s.isNotEmpty).toSet();
+    return text
+        .toLowerCase()
+        .split(RegExp(r'[^a-z0-9]+'))
+        .where((s) => s.isNotEmpty)
+        .toSet();
   }
 
   double _calculateJaccardSimilarity(Set<String> set1, Set<String> set2) {
@@ -55,8 +42,11 @@ class LicenseGenerator {
 
   String _normalizeText(String text) {
     // Remove copyright lines and email addresses
-    text = text.replaceAll(RegExp(r'copyright \(c\) .+', caseSensitive: false, multiLine: true), '');
-    text = text.replaceAll(RegExp(r'<[^>]+>'), ''); // Remove text in angle brackets like emails
+    text = text.replaceAll(
+        RegExp(r'copyright \(c\) .+', caseSensitive: false, multiLine: true),
+        '');
+    text = text.replaceAll(
+        RegExp(r'<[^>]+>'), ''); // Remove text in angle brackets like emails
     // Standardize whitespace
     text = text.replaceAll(RegExp(r'\s+'), ' ').trim();
     return text;
@@ -66,19 +56,26 @@ class LicenseGenerator {
     final lowerCaseText = licenseContent.toLowerCase();
 
     // MIT Heuristic
-    if (lowerCaseText.contains('permission is hereby granted') && lowerCaseText.contains('the software is provided "as is"')) {
+    if (lowerCaseText.contains('permission is hereby granted') &&
+        lowerCaseText.contains('the software is provided "as is"')) {
       return 'MIT';
     }
     // BSD-3-Clause Heuristic
-    if (lowerCaseText.contains('redistribution and use in source and binary forms') && lowerCaseText.contains('neither the name of the copyright holder nor the names of its contributors may be used')) {
+    if (lowerCaseText
+            .contains('redistribution and use in source and binary forms') &&
+        lowerCaseText.contains(
+            'neither the name of the copyright holder nor the names of its contributors may be used')) {
       return 'BSD-3-Clause';
     }
     // Apache 2.0 Heuristic
-    if (lowerCaseText.contains('apache license, version 2.0') && lowerCaseText.contains('terms and conditions for use, reproduction, and distribution')) {
+    if (lowerCaseText.contains('apache license, version 2.0') &&
+        lowerCaseText.contains(
+            'terms and conditions for use, reproduction, and distribution')) {
       return 'Apache-2.0';
     }
     // ISC Heuristic
-    if (lowerCaseText.contains('permission to use, copy, modify, and/or distribute this software for any purpose')) {
+    if (lowerCaseText.contains(
+        'permission to use, copy, modify, and/or distribute this software for any purpose')) {
       return 'ISC';
     }
 
@@ -93,7 +90,10 @@ class LicenseGenerator {
     }
 
     // Step 2: If no heuristic match, proceed with paragraph-based similarity.
-    final scannedParagraphs = _normalizeText(licenseContent).split(RegExp(r'\n\s*\n')).where((p) => p.isNotEmpty).toList();
+    final scannedParagraphs = _normalizeText(licenseContent)
+        .split(RegExp(r'\n\s*\n'))
+        .where((p) => p.isNotEmpty)
+        .toList();
     if (scannedParagraphs.isEmpty) {
       return 'Unknown';
     }
@@ -102,12 +102,16 @@ class LicenseGenerator {
     double highestAverageSimilarity = 0.0;
 
     for (final knownLicenseEntry in _knownLicenses.entries) {
-      final templateParagraphs = _normalizeText(knownLicenseEntry.value).split(RegExp(r'\n\s*\n')).where((p) => p.isNotEmpty).toList();
+      final templateParagraphs = _normalizeText(knownLicenseEntry.value)
+          .split(RegExp(r'\n\s*\n'))
+          .where((p) => p.isNotEmpty)
+          .toList();
       if (templateParagraphs.isEmpty) {
         continue;
       }
 
-      final templateParagraphTokens = templateParagraphs.map(_tokenize).toList();
+      final templateParagraphTokens =
+          templateParagraphs.map(_tokenize).toList();
       double totalSimilarity = 0;
 
       for (final scannedParagraph in scannedParagraphs) {
@@ -115,7 +119,8 @@ class LicenseGenerator {
         double maxSimilarityForParagraph = 0;
 
         for (final templateTokens in templateParagraphTokens) {
-          final similarity = _calculateJaccardSimilarity(scannedTokens, templateTokens);
+          final similarity =
+              _calculateJaccardSimilarity(scannedTokens, templateTokens);
           if (similarity > maxSimilarityForParagraph) {
             maxSimilarityForParagraph = similarity;
           }
@@ -143,7 +148,8 @@ class LicenseGenerator {
     final output = File(outputPath);
     final buffer = StringBuffer();
 
-    buffer.writeln('// This file is generated by flutter_oss_manager. Do not modify.');
+    buffer.writeln(
+        '// This file is generated by flutter_oss_manager. Do not modify.');
     buffer.writeln('');
     buffer.writeln('class OssLicense {');
     buffer.writeln('  final String name;');
@@ -166,12 +172,14 @@ class LicenseGenerator {
     buffer.writeln('const List<OssLicense> ossLicenses = [');
     for (final license in ossLicenses) {
       buffer.writeln('  OssLicense(');
-      buffer.writeln('    name: ' + jsonEncode(license.name) + ',');
-      buffer.writeln('    version: ' + jsonEncode(license.version) + ',');
-      buffer.writeln('    licenseText: ' + jsonEncode(license.licenseText) + ',');
-      buffer.writeln('    licenseSummary: ' + jsonEncode(license.licenseSummary) + ',');
-      buffer.writeln('    repositoryUrl: ' + jsonEncode(license.repositoryUrl) + ',');
-      buffer.writeln('    description: ' + jsonEncode(license.description) + ',');
+      buffer.writeln('    name: ${jsonEncode(license.name)},');
+      buffer.writeln('    version: ${jsonEncode(license.version)},');
+      buffer.writeln('    licenseText: ${jsonEncode(license.licenseText)},');
+      buffer.writeln(
+          '    licenseSummary: ${jsonEncode(license.licenseSummary)},');
+      buffer
+          .writeln('    repositoryUrl: ${jsonEncode(license.repositoryUrl)},');
+      buffer.writeln('    description: ${jsonEncode(license.description)},');
       buffer.writeln('  ),');
     }
     buffer.writeln('];');
@@ -182,7 +190,8 @@ class LicenseGenerator {
 
   void generateLicenses({String? licenseFilePath, String? outputFilePath}) {
     if (licenseFilePath == null) {
-      print('Error: License file path must be provided for the generate command.');
+      print(
+          'Error: License file path must be provided for the generate command.');
       return;
     }
     final licenseContent = _readLicenseFile(licenseFilePath);
@@ -200,7 +209,8 @@ class LicenseGenerator {
 
   Future<void> scanPackages({String? outputFilePath}) async {
     print('Scanning packages for licenses...');
-    final pubspecLockFile = File(p.join(Directory.current.path, 'pubspec.lock'));
+    final pubspecLockFile =
+        File(p.join(Directory.current.path, 'pubspec.lock'));
     if (!pubspecLockFile.existsSync()) {
       print('Error: pubspec.lock not found. Run \'flutter pub get\' first.');
       return;
@@ -221,7 +231,8 @@ class LicenseGenerator {
         if (source == 'hosted') {
           final packageVersion = packageInfo['version'].toString();
           print('- $packageName ($packageVersion) [hosted]');
-          license = await _findAndSummarizeHostedLicense(packageName, packageVersion);
+          license =
+              await _findAndSummarizeHostedLicense(packageName, packageVersion);
         } else if (source == 'sdk') {
           print('- $packageName [sdk]');
           license = await _findAndSummarizeSdkLicense(packageName);
@@ -236,15 +247,18 @@ class LicenseGenerator {
     }
 
     if (outputFilePath != null) {
-      _writeDartFile(p.join(Directory.current.path, outputFilePath), collectedLicenses);
+      _writeDartFile(
+          p.join(Directory.current.path, outputFilePath), collectedLicenses);
     } else {
       print('No output file path provided. Skipping .dart file generation.');
     }
   }
 
-  Future<OssLicense?> _findAndSummarizeHostedLicense(String packageName, String packageVersion) async {
+  Future<OssLicense?> _findAndSummarizeHostedLicense(
+      String packageName, String packageVersion) async {
     final pubCacheDir = _getPubCacheDir();
-    final packagePath = p.join(pubCacheDir, 'hosted', 'pub.dev', '$packageName-$packageVersion');
+    final packagePath = p.join(
+        pubCacheDir, 'hosted', 'pub.dev', '$packageName-$packageVersion');
 
     String? repositoryUrl;
     String? description;
@@ -252,7 +266,8 @@ class LicenseGenerator {
     if (packagePubspecFile.existsSync()) {
       final packagePubspecContent = packagePubspecFile.readAsStringSync();
       final packageYamlMap = loadYaml(packagePubspecContent) as YamlMap;
-      repositoryUrl = packageYamlMap['repository']?.toString() ?? packageYamlMap['homepage']?.toString();
+      repositoryUrl = packageYamlMap['repository']?.toString() ??
+          packageYamlMap['homepage']?.toString();
       description = packageYamlMap['description']?.toString();
     }
 
@@ -262,7 +277,13 @@ class LicenseGenerator {
       if (licenseFile.existsSync()) {
         final licenseContent = licenseFile.readAsStringSync();
         final licenseSummary = _summarizeLicense(licenseContent);
-        return OssLicense(name: packageName, version: packageVersion, licenseText: licenseContent, licenseSummary: licenseSummary, repositoryUrl: repositoryUrl, description: description);
+        return OssLicense(
+            name: packageName,
+            version: packageVersion,
+            licenseText: licenseContent,
+            licenseSummary: licenseSummary,
+            repositoryUrl: repositoryUrl,
+            description: description);
       }
     }
     print('  No license file found for $packageName');
@@ -284,7 +305,9 @@ class LicenseGenerator {
     String sdkVersion = '0.0.0';
 
     try {
-      final result = await Process.run(Platform.isWindows ? 'flutter.bat' : 'flutter', ['--version', '--machine']);
+      final result = await Process.run(
+          Platform.isWindows ? 'flutter.bat' : 'flutter',
+          ['--version', '--machine']);
       if (result.exitCode == 0) {
         final jsonOutput = jsonDecode(result.stdout.toString());
         sdkVersion = jsonOutput['frameworkVersion'];
@@ -297,7 +320,8 @@ class LicenseGenerator {
       repositoryUrl = 'https://github.com/flutter/flutter';
       description = 'Flutter SDK';
     } else if (packageName == 'flutter_test') {
-      repositoryUrl = 'https://github.com/flutter/flutter/tree/master/packages/flutter_test';
+      repositoryUrl =
+          'https://github.com/flutter/flutter/tree/master/packages/flutter_test';
       description = 'Flutter Test Framework';
     } else if (packageName == 'sky_engine') {
       repositoryUrl = 'https://github.com/flutter/engine';
@@ -307,7 +331,13 @@ class LicenseGenerator {
     if (licenseFile.existsSync()) {
       final licenseContent = licenseFile.readAsStringSync();
       final licenseSummary = _summarizeLicense(licenseContent);
-      return OssLicense(name: packageName, version: sdkVersion, licenseText: licenseContent, licenseSummary: licenseSummary, repositoryUrl: repositoryUrl, description: description);
+      return OssLicense(
+          name: packageName,
+          version: sdkVersion,
+          licenseText: licenseContent,
+          licenseSummary: licenseSummary,
+          repositoryUrl: repositoryUrl,
+          description: description);
     }
     print('  No license file found for SDK package: $packageName');
     return null;
