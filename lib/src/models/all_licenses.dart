@@ -8,11 +8,11 @@ import 'template_license_info.dart';
 /// 우선순위 순으로 정렬되어 있음 (낮은 숫자가 높은 우선순위)
 final Map<String, TemplateLicenseInfo> allLicenses = () {
   final licenses = <TemplateLicenseInfo>[
-    MitLicenseInfo(),
+    MITLicenseInfo(),
     ApacheLicenseInfo(),
-    IscLicenseInfo(),
-    Bsd3ClauseLicenseInfo(),
-    Bsd2ClauseLicenseInfo(),
+    ISCLicenseInfo(),
+    BSD3ClauseLicenseInfo(),
+    BSD2ClauseLicenseInfo(),
   ];
 
   // 우선순위로 정렬 (낮은 숫자가 먼저)
