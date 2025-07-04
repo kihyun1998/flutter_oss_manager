@@ -54,14 +54,36 @@ class LicenseGenerator {
   }
 
   String _summarizeLicense(String licenseContent) {
-    // Step 1: 휴리스틱 매칭 시도 (우선순위 순)
+    // Step 1: 새로운 휴리스틱 매칭 시도 (우선순위 순)
     final licensesByPriority = getLicensesByPriority();
 
+    List<Map<String, dynamic>> heuristicResults = [];
+
     for (final licenseInfo in licensesByPriority) {
-      if (licenseInfo.matchesHeuristic(licenseContent)) {
-        print('  Matched via heuristic: ${licenseInfo.licenseId}');
-        return licenseInfo.licenseId;
+      final score = licenseInfo.calculateScore(licenseContent);
+
+      if (score['matches'] >= licenseInfo.minMatches) {
+        heuristicResults.add({
+          'licenseId': licenseInfo.licenseId,
+          'confidence': score['confidence'],
+          'matches': score['matches'],
+          'matchedPatterns': score['matchedPatterns'],
+        });
+
+        print(
+            '  Matched via new heuristic: ${licenseInfo.licenseId} (${score['confidence'].toStringAsFixed(1)}% confidence, ${score['matches']} matches)');
       }
+    }
+
+    // 신뢰도순으로 정렬
+    heuristicResults.sort((a, b) => b['confidence'].compareTo(a['confidence']));
+
+    // 가장 높은 신뢰도 결과 반환
+    if (heuristicResults.isNotEmpty) {
+      final bestResult = heuristicResults.first;
+      print(
+          '  Best heuristic match: ${bestResult['licenseId']} with ${bestResult['confidence'].toStringAsFixed(1)}% confidence');
+      return bestResult['licenseId'];
     }
 
     // Step 2: 휴리스틱 매칭이 실패한 경우, 기존 유사도 기반 매칭 사용

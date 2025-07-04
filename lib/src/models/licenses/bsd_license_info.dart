@@ -69,12 +69,12 @@ class BSD3ClauseLicenseInfo extends TemplateLicenseInfo {
 
   @override
   List<RegExp> get patterns => [
-        RegExp(r'BSD 3-Clause License', caseSensitive: false),
-        RegExp(
-            r'Neither the name of the copyright holder nor the names of its contributors',
+        RegExp(r'Neither the name of.*nor the names of its contributors',
             caseSensitive: false),
         RegExp(r'Redistribution and use in source and binary forms',
             caseSensitive: false),
+        RegExp(r'without specific prior written permission',
+            caseSensitive: false), // 3번째 조항의 끝부분
       ];
 
   @override
@@ -82,14 +82,16 @@ class BSD3ClauseLicenseInfo extends TemplateLicenseInfo {
 
   @override
   List<String> get uniqueKeywords => [
-        "Neither the name of the copyright holder nor the names of its contributors"
+        "Neither the name of",
+        "nor the names of its contributors",
+        "without specific prior written permission"
       ];
 
   @override
   List<String> get excludeKeywords => ["All advertising materials"];
 
   @override
-  int get priority => 15; // BSD-3가 BSD-2보다 더 구체적이므로 높은 우선순위
+  int get priority => 15;
 
   @override
   String get licenseText => r'''
@@ -141,8 +143,10 @@ class BSD2ClauseLicenseInfo extends TemplateLicenseInfo {
   int get minMatches => 2;
 
   @override
-  List<String> get excludeKeywords =>
-      ["Neither the name of the copyright holder", "All advertising materials"];
+  List<String> get excludeKeywords => [
+        "Neither the name of", // 더 짧게 해서 확실히 감지
+        "All advertising materials"
+      ];
 
   @override
   int get priority => 20; // BSD-3보다 낮은 우선순위
