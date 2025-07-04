@@ -7,8 +7,9 @@ import 'licenses/mit_license_info.dart';
 import 'licenses/mpl_license_info.dart';
 import 'template_license_info.dart';
 
-/// 지원하는 모든 라이선스 정보를 담고 있는 Map
-/// 우선순위 순으로 정렬되어 있음 (낮은 숫자가 높은 우선순위)
+/// A map containing all supported license information, keyed by their [licenseId].
+///
+/// The licenses are sorted by their [priority] (lower number indicates higher priority).
 final Map<String, TemplateLicenseInfo> allLicenses = () {
   final licenses = <TemplateLicenseInfo>[
     ApacheLicenseInfo(),
@@ -24,15 +25,18 @@ final Map<String, TemplateLicenseInfo> allLicenses = () {
     MPLLicenseInfo(),
   ];
 
-  // 우선순위로 정렬 (낮은 숫자가 먼저)
+  // Sort by priority (lower number first)
   licenses.sort((a, b) => a.priority.compareTo(b.priority));
 
-  // Map으로 변환
+  // Convert to Map
   return Map.fromEntries(
       licenses.map((license) => MapEntry(license.licenseId, license)));
 }();
 
-/// 휴리스틱 매칭을 위해 우선순위 순으로 라이선스를 반환
+/// Returns a list of all supported license templates, sorted by their priority.
+///
+/// This list is used for heuristic matching, ensuring that higher-priority
+/// licenses are checked first.
 List<TemplateLicenseInfo> getLicensesByPriority() {
   final licenses = allLicenses.values.toList();
   licenses.sort((a, b) => a.priority.compareTo(b.priority));

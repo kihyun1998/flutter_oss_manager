@@ -1,5 +1,6 @@
 import 'package:flutter_oss_manager/src/models/template_license_info.dart';
 
+/// Represents the GNU Lesser General Public License v3.0 template information for license detection.
 class LGPLV3LicenseInfo extends TemplateLicenseInfo {
   @override
   String get licenseId => 'LGPL-3.0';
@@ -192,6 +193,7 @@ Library.
 ''';
 }
 
+/// Represents the GNU Lesser General Public License v2.1 template information for license detection.
 class LGPLV2LicenseInfo extends TemplateLicenseInfo {
   @override
   String get licenseId => 'LGPL-2.1';

@@ -1,5 +1,6 @@
 import '../template_license_info.dart';
 
+/// Represents the MIT License template information for license detection.
 class MITLicenseInfo extends TemplateLicenseInfo {
   @override
   String get licenseId => 'MIT';

@@ -1,5 +1,6 @@
 import '../template_license_info.dart';
 
+/// Represents the ISC License template information for license detection.
 class ISCLicenseInfo extends TemplateLicenseInfo {
   @override
   String get licenseId => 'ISC';

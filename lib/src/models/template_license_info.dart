@@ -1,29 +1,41 @@
+/// Abstract base class for defining license templates.
+///
+/// Each concrete implementation of this class represents a specific open-source
+/// license (e.g., MIT, Apache-2.0) and provides the necessary patterns and
+/// keywords for its identification and summarization.
 abstract class TemplateLicenseInfo {
-  /// 라이선스 식별자 (예: 'MIT', 'Apache-2.0', 'BSD-3-Clause')
+  /// The unique identifier for the license (e.g., 'MIT', 'Apache-2.0', 'BSD-3-Clause').
   String get licenseId;
 
-  /// 라이선스 전체 텍스트 템플릿
+  /// The full template text of the license.
   String get licenseText;
 
-  /// 정규식 패턴들
+  /// A list of regular expressions used to identify the license within a given text.
   List<RegExp> get patterns;
 
-  /// 최소 매치해야 하는 패턴 수
+  /// The minimum number of patterns that must match for a heuristic identification.
   int get minMatches;
 
-  /// 고유 키워드들 (높은 가중치)
+  /// A list of unique keywords that strongly indicate this license type.
+  /// These keywords are given higher weight during heuristic matching.
   List<String> get uniqueKeywords => [];
 
-  /// 제외 키워드들 (패널티)
+  /// A list of keywords that, if present, suggest this is NOT this license type.
+  /// These keywords apply a penalty during heuristic matching.
   List<String> get excludeKeywords => [];
 
-  /// 최대 길이 제약
+  /// An optional maximum length for the license text. If the text exceeds this
+  /// length, it might reduce the confidence score for this license type.
   int? get maxLength => null;
 
-  /// 라이선스 매칭 우선순위 (낮을수록 높은 우선순위)
+  /// The priority of this license during matching. Lower numbers indicate higher priority.
+  /// Licenses with higher priority are checked first during heuristic matching.
   int get priority => 100;
 
-  /// 신뢰도 계산
+  /// Calculates a score for how well the given [text] matches this license template.
+  ///
+  /// The score includes the number of matching patterns, a confidence percentage,
+  /// and a list of matched patterns.
   Map<String, dynamic> calculateScore(String text) {
     int matches = 0;
     double confidence = 0.0;
@@ -68,7 +80,10 @@ abstract class TemplateLicenseInfo {
     };
   }
 
-  /// 휴리스틱 매칭 (새로운 방식)
+  /// Determines if the given [content] matches this license template based on heuristic rules.
+  ///
+  /// This method uses the [calculateScore] to determine if the content meets
+  /// the minimum match requirements for this license.
   bool matchesHeuristic(String content) {
     final score = calculateScore(content);
     return score['matches'] >= minMatches;

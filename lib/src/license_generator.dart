@@ -8,6 +8,11 @@ import 'models/all_licenses.dart';
 import 'models/oss_license.dart';
 import 'models/template_license_info.dart';
 
+/// A utility class responsible for generating and scanning open-source licenses.
+///
+/// This class provides methods to generate license information from a single file
+/// or to scan an entire Flutter project's dependencies to collect and summarize
+/// their licenses.
 class LicenseGenerator {
   final Map<String, TemplateLicenseInfo> _licensesMap = allLicenses;
   static const List<String> _licenseFileNames = [
@@ -191,6 +196,14 @@ class LicenseGenerator {
     print('Generated Dart file: $outputPath');
   }
 
+  /// Generates a single [OssLicense] object from a specified license file.
+  ///
+  /// This method is useful for including a project's own license or any other
+  /// standalone license file into the generated `oss_licenses.dart`.
+  ///
+  /// [licenseFilePath] The absolute path to the license file to read.
+  /// [outputFilePath] The path where the generated Dart file will be saved.
+  ///                 Defaults to `lib/oss_licenses.dart` if not provided.
   void generateLicenses({String? licenseFilePath, String? outputFilePath}) {
     if (licenseFilePath == null) {
       print(
@@ -210,6 +223,14 @@ class LicenseGenerator {
     _writeDartFile(outputFilePath ?? 'lib/oss_licenses.dart', [license]);
   }
 
+  /// Scans all Flutter project dependencies from `pubspec.lock`,
+  /// identifies their licenses, and generates a Dart file containing
+  /// the collected license information.
+  ///
+  /// The generated file will contain a list of [OssLicense] objects.
+  ///
+  /// [outputFilePath] The path where the generated Dart file will be saved.
+  ///                 Defaults to `lib/oss_licenses.dart` if not provided.
   Future<void> scanPackages({String? outputFilePath}) async {
     print('Scanning packages for licenses...');
     final pubspecLockFile =

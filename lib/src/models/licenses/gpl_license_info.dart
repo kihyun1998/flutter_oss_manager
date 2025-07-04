@@ -1,5 +1,6 @@
 import '../template_license_info.dart';
 
+/// Represents the GNU General Public License v3.0 template information for license detection.
 class GPLV3LicenseInfo extends TemplateLicenseInfo {
   @override
   String get licenseId => 'GPL-3.0';
@@ -703,6 +704,7 @@ Public License instead of this License.  But first, please read
 ''';
 }
 
+/// Represents the GNU General Public License v2.0 template information for license detection.
 class GPLV2LicenseInfo extends TemplateLicenseInfo {
   @override
   String get licenseId => 'GPL-2.0';

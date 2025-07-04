@@ -1,5 +1,6 @@
 import '../template_license_info.dart';
 
+/// Represents the Apache License 2.0 template information for license detection.
 class ApacheLicenseInfo extends TemplateLicenseInfo {
   @override
   String get licenseId => 'Apache-2.0';

@@ -1,5 +1,6 @@
 import '../template_license_info.dart';
 
+/// Represents the BSD 4-Clause License template information for license detection.
 class BSD4ClauseLicenseInfo extends TemplateLicenseInfo {
   @override
   String get licenseId => 'BSD-4-Clause';
@@ -63,6 +64,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ''';
 }
 
+/// Represents the BSD 3-Clause License template information for license detection.
 class BSD3ClauseLicenseInfo extends TemplateLicenseInfo {
   @override
   String get licenseId => 'BSD-3-Clause';
@@ -126,6 +128,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ''';
 }
 
+/// Represents the BSD 2-Clause License template information for license detection.
 class BSD2ClauseLicenseInfo extends TemplateLicenseInfo {
   @override
   String get licenseId => 'BSD-2-Clause';

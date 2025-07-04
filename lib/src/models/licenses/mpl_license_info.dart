@@ -1,5 +1,6 @@
 import 'package:flutter_oss_manager/src/models/template_license_info.dart';
 
+/// Represents the Mozilla Public License 2.0 template information for license detection.
 class MPLLicenseInfo extends TemplateLicenseInfo {
   @override
   String get licenseId => 'MPL-2.0';
