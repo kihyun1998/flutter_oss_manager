@@ -1,3 +1,7 @@
+## 1.0.1
+
+* Added comprehensive Dartdoc comments to public API elements to improve documentation score on pub.dev.
+
 ## 1.0.0
 
 * **Initial release of `flutter_oss_manager`.**
