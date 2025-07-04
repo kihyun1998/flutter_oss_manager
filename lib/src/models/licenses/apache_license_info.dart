@@ -5,14 +5,20 @@ class ApacheLicenseInfo extends TemplateLicenseInfo {
   String get licenseId => 'Apache-2.0';
 
   @override
-  List<String> get heuristicKeywords => [
-        'Grant of Patent License',
-        'Apache License',
-        'Version 2.0, January 2004',
-        'institute patent litigation',
+  List<RegExp> get patterns => [
+        RegExp(r'Apache License.*Version 2\.0.*January 2004',
+            caseSensitive: false),
+        RegExp(r'Grant of Copyright License', caseSensitive: false),
+        RegExp(r'Grant of Patent License', caseSensitive: false),
+        RegExp(r'Apache Software Foundation', caseSensitive: false),
       ];
 
-  List<String> get customKeywords => [];
+  @override
+  int get minMatches => 2;
+
+  @override
+  List<String> get uniqueKeywords =>
+      ["Grant of Patent License", "Licensor", "Contributor"];
 
   @override
   int get priority => 10; // 높은 우선순위

@@ -2,10 +2,26 @@ import 'package:flutter_oss_manager/src/models/template_license_info.dart';
 
 class MPLLicenseInfo extends TemplateLicenseInfo {
   @override
-  List<String> get heuristicKeywords => throw UnimplementedError();
+  String get licenseId => 'MPL-2.0';
 
   @override
-  String get licenseId => throw UnimplementedError();
+  List<RegExp> get patterns => [
+        RegExp(r'Mozilla Public License Version 2\.0', caseSensitive: false),
+        RegExp(r'1\. Definitions', caseSensitive: false),
+        RegExp(r'Covered Software', caseSensitive: false),
+        RegExp(r'Contributor Version', caseSensitive: false),
+        RegExp(r'Incompatible With Secondary Licenses', caseSensitive: false),
+      ];
+
+  @override
+  int get minMatches => 3;
+
+  @override
+  List<String> get uniqueKeywords =>
+      ["Incompatible With Secondary Licenses", "Secondary License"];
+
+  @override
+  int get priority => 10;
 
   @override
   String get licenseText => r'''

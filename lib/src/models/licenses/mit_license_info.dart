@@ -5,11 +5,24 @@ class MITLicenseInfo extends TemplateLicenseInfo {
   String get licenseId => 'MIT';
 
   @override
-  List<String> get heuristicKeywords => [
-        'permission is hereby granted',
-        'the software is provided "as is"',
-        'without warranty of any kind',
+  List<RegExp> get patterns => [
+        RegExp(r'MIT License', caseSensitive: false),
+        RegExp(r'Permission is hereby granted, free of charge',
+            caseSensitive: false),
+        RegExp(r'THE SOFTWARE IS PROVIDED "AS IS"', caseSensitive: false),
+        RegExp(r'WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED',
+            caseSensitive: false),
       ];
+
+  @override
+  int get minMatches => 2;
+
+  @override
+  List<String> get uniqueKeywords =>
+      ["Permission is hereby granted, free of charge"];
+
+  @override
+  List<String> get excludeKeywords => ["BSD", "ISC"];
 
   @override
   int get priority => 10; // 높은 우선순위

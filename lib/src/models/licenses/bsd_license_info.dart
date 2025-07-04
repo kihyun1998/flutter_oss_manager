@@ -5,11 +5,22 @@ class BSD4ClauseLicenseInfo extends TemplateLicenseInfo {
   String get licenseId => 'BSD-4-Clause';
 
   @override
-  List<String> get heuristicKeywords => [
-        'BSD 4-Clause License',
-        'All advertising materials mentioning features',
-        'This product includes software developed by'
+  List<RegExp> get patterns => [
+        RegExp(r'BSD 4-Clause License', caseSensitive: false),
+        RegExp(r'All advertising materials mentioning features',
+            caseSensitive: false),
+        RegExp(r'This product includes software developed by',
+            caseSensitive: false),
+        RegExp(r'Neither the name of the copyright holder',
+            caseSensitive: false),
       ];
+
+  @override
+  int get minMatches => 2;
+
+  @override
+  List<String> get uniqueKeywords =>
+      ["All advertising materials mentioning features"];
 
   @override
   int get priority => 10;
@@ -57,12 +68,28 @@ class BSD3ClauseLicenseInfo extends TemplateLicenseInfo {
   String get licenseId => 'BSD-3-Clause';
 
   @override
-  List<String> get heuristicKeywords => [
-        'BSD 3-Clause License',
+  List<RegExp> get patterns => [
+        RegExp(r'BSD 3-Clause License', caseSensitive: false),
+        RegExp(
+            r'Neither the name of the copyright holder nor the names of its contributors',
+            caseSensitive: false),
+        RegExp(r'Redistribution and use in source and binary forms',
+            caseSensitive: false),
       ];
 
   @override
-  int get priority => 15; // BSD-3 이 BSD-2 보다 더 구체적이므로 높은 우선순위
+  int get minMatches => 2;
+
+  @override
+  List<String> get uniqueKeywords => [
+        "Neither the name of the copyright holder nor the names of its contributors"
+      ];
+
+  @override
+  List<String> get excludeKeywords => ["All advertising materials"];
+
+  @override
+  int get priority => 15; // BSD-3가 BSD-2보다 더 구체적이므로 높은 우선순위
 
   @override
   String get licenseText => r'''
@@ -102,12 +129,23 @@ class BSD2ClauseLicenseInfo extends TemplateLicenseInfo {
   String get licenseId => 'BSD-2-Clause';
 
   @override
-  List<String> get heuristicKeywords => [
-        'BSD 2-Clause License',
+  List<RegExp> get patterns => [
+        RegExp(r'BSD 2-Clause License', caseSensitive: false),
+        RegExp(r'Redistribution and use in source and binary forms',
+            caseSensitive: false),
+        RegExp(r'THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS',
+            caseSensitive: false),
       ];
 
   @override
-  int get priority => 20; // BSD-3 보다 낮은 우선순위
+  int get minMatches => 2;
+
+  @override
+  List<String> get excludeKeywords =>
+      ["Neither the name of the copyright holder", "All advertising materials"];
+
+  @override
+  int get priority => 20; // BSD-3보다 낮은 우선순위
 
   @override
   String get licenseText => r'''

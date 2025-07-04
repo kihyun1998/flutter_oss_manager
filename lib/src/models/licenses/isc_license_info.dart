@@ -5,9 +5,23 @@ class ISCLicenseInfo extends TemplateLicenseInfo {
   String get licenseId => 'ISC';
 
   @override
-  List<String> get heuristicKeywords => [
-        'permission to use, copy, modify, and/or distribute this software for any purpose',
+  List<RegExp> get patterns => [
+        RegExp(r'ISC License', caseSensitive: false),
+        RegExp(r'Permission to use, copy, modify, and/or distribute',
+            caseSensitive: false),
+        RegExp(r'THE SOFTWARE IS PROVIDED "AS IS"', caseSensitive: false),
+        RegExp(r'THE AUTHOR DISCLAIMS ALL WARRANTIES', caseSensitive: false),
       ];
+
+  @override
+  int get minMatches => 2;
+
+  @override
+  List<String> get uniqueKeywords =>
+      ["Permission to use, copy, modify, and/or distribute"];
+
+  @override
+  int? get maxLength => 1000; // ISC is very short
 
   @override
   int get priority => 10; // 높은 우선순위
