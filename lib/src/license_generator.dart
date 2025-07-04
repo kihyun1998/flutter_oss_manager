@@ -4,8 +4,8 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:yaml/yaml.dart';
 
-import '../oss_licenses.dart';
 import 'models/all_licenses.dart';
+import 'models/oss_license.dart';
 import 'models/template_license_info.dart';
 
 class LicenseGenerator {
