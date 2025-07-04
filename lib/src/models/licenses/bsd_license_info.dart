@@ -6,23 +6,13 @@ class BSD4ClauseLicenseInfo extends TemplateLicenseInfo {
 
   @override
   List<String> get heuristicKeywords => [
-        'redistribution and use in source and binary forms',
-        'neither the name of the copyright holder nor the names of its contributors may be used',
+        'BSD 4-Clause License',
+        'All advertising materials mentioning features',
+        'This product includes software developed by'
       ];
 
   @override
   int get priority => 10;
-
-  @override
-  bool matchesHeuristic(String content) {
-    final lowerContent = content.toLowerCase();
-
-    // BSD-3-Clause 특화 로직
-    return lowerContent
-            .contains('redistribution and use in source and binary forms') &&
-        lowerContent.contains(
-            'neither the name of the copyright holder nor the names of its contributors may be used');
-  }
 
   @override
   String get licenseText => r'''
@@ -68,23 +58,11 @@ class BSD3ClauseLicenseInfo extends TemplateLicenseInfo {
 
   @override
   List<String> get heuristicKeywords => [
-        'redistribution and use in source and binary forms',
-        'neither the name of the copyright holder nor the names of its contributors may be used',
+        'BSD 3-Clause License',
       ];
 
   @override
   int get priority => 15; // BSD-3 이 BSD-2 보다 더 구체적이므로 높은 우선순위
-
-  @override
-  bool matchesHeuristic(String content) {
-    final lowerContent = content.toLowerCase();
-
-    // BSD-3-Clause 특화 로직
-    return lowerContent
-            .contains('redistribution and use in source and binary forms') &&
-        lowerContent.contains(
-            'neither the name of the copyright holder nor the names of its contributors may be used');
-  }
 
   @override
   String get licenseText => r'''
@@ -125,22 +103,11 @@ class BSD2ClauseLicenseInfo extends TemplateLicenseInfo {
 
   @override
   List<String> get heuristicKeywords => [
-        'redistribution and use in source and binary forms',
+        'BSD 2-Clause License',
       ];
 
   @override
   int get priority => 20; // BSD-3 보다 낮은 우선순위
-
-  @override
-  bool matchesHeuristic(String content) {
-    final lowerContent = content.toLowerCase();
-
-    // BSD-2-Clause 특화 로직: BSD-3의 3번째 조항이 없어야 함
-    return lowerContent
-            .contains('redistribution and use in source and binary forms') &&
-        !lowerContent.contains(
-            'neither the name of the copyright holder nor the names of its contributors may be used');
-  }
 
   @override
   String get licenseText => r'''

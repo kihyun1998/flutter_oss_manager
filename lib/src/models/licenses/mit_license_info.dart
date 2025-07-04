@@ -15,17 +15,6 @@ class MITLicenseInfo extends TemplateLicenseInfo {
   int get priority => 10; // 높은 우선순위
 
   @override
-  bool matchesHeuristic(String content) {
-    final lowerContent = content.toLowerCase();
-
-    // MIT 특화 로직: 핵심 문구들이 모두 포함되어야 함
-    return lowerContent.contains('permission is hereby granted') &&
-        lowerContent.contains('the software is provided "as is"') &&
-        lowerContent.contains('without warranty of any kind') &&
-        !lowerContent.contains('copyleft'); // copyleft 라이선스가 아님을 확인
-  }
-
-  @override
   String get licenseText => r'''
 MIT License
 

@@ -13,16 +13,6 @@ class ISCLicenseInfo extends TemplateLicenseInfo {
   int get priority => 10; // 높은 우선순위
 
   @override
-  bool matchesHeuristic(String content) {
-    final lowerContent = content.toLowerCase();
-
-    // ISC 특화 로직
-    return lowerContent.contains(
-            'permission to use, copy, modify, and/or distribute this software for any purpose') &&
-        lowerContent.contains('the software is provided "as is"');
-  }
-
-  @override
   String get licenseText => r'''
 ISC License
 

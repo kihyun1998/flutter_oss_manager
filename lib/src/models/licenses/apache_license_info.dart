@@ -6,25 +6,16 @@ class ApacheLicenseInfo extends TemplateLicenseInfo {
 
   @override
   List<String> get heuristicKeywords => [
-        'apache license',
-        'version 2.0',
-        'terms and conditions for use, reproduction, and distribution',
+        'Grant of Patent License',
+        'Apache License',
+        'Version 2.0, January 2004',
+        'institute patent litigation',
       ];
+
+  List<String> get customKeywords => [];
 
   @override
   int get priority => 10; // 높은 우선순위
-
-  @override
-  bool matchesHeuristic(String content) {
-    final lowerContent = content.toLowerCase();
-
-    // Apache 2.0 특화 로직
-    return (lowerContent.contains('apache license, version 2.0') ||
-            (lowerContent.contains('apache license') &&
-                lowerContent.contains('version 2.0'))) &&
-        lowerContent.contains(
-            'terms and conditions for use, reproduction, and distribution');
-  }
 
   @override
   String get licenseText => r'''

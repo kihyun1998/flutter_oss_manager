@@ -37,4 +37,5 @@ codemd*
 *.md
 example/assets/app_icon*
 **/.flutter-plugin*
+template_licenses/
 
