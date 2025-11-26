@@ -1,3 +1,7 @@
+## 1.0.2
+
+* **feat**: Added prominent warnings for potentially problematic licenses (GPL, LGPL, AGPL) during scan.
+
 ## 1.0.1
 
 * Added comprehensive Dartdoc comments to public API elements to improve documentation score on pub.dev.

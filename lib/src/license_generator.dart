@@ -24,6 +24,16 @@ class LicenseGenerator {
     'LICENCE.txt',
   ];
 
+  /// Licenses that may cause legal issues in commercial or proprietary software.
+  /// These licenses typically require source code disclosure or have copyleft requirements.
+  static const List<String> _problematicLicenses = [
+    'GPL-2.0',
+    'GPL-3.0',
+    'LGPL-2.1',
+    'LGPL-3.0',
+    'AGPL-3.0',
+  ];
+
   String _readLicenseFile(String filePath) {
     return File(filePath).readAsStringSync();
   }
@@ -243,6 +253,7 @@ class LicenseGenerator {
     final pubspecLockMap = loadYaml(pubspecLockContent) as YamlMap;
 
     final List<OssLicense> collectedLicenses = [];
+    final List<Map<String, String>> problematicPackages = [];
 
     final packages = pubspecLockMap['packages'] as YamlMap?;
     if (packages != null) {
@@ -266,8 +277,22 @@ class LicenseGenerator {
 
         if (license != null) {
           collectedLicenses.add(license);
+
+          // Check if the license is problematic
+          if (_problematicLicenses.contains(license.licenseSummary)) {
+            problematicPackages.add({
+              'name': license.name,
+              'version': license.version,
+              'license': license.licenseSummary,
+            });
+          }
         }
       }
+    }
+
+    // Display warnings for problematic licenses
+    if (problematicPackages.isNotEmpty) {
+      _printLicenseWarnings(problematicPackages);
     }
 
     if (outputFilePath != null) {
@@ -387,5 +412,58 @@ class LicenseGenerator {
       print('Error getting Flutter SDK path: $e');
     }
     return null;
+  }
+
+  /// Prints prominent warnings for packages with potentially problematic licenses.
+  ///
+  /// This method displays a highly visible warning message when GPL, LGPL, or other
+  /// copyleft licenses are detected, as these may have legal implications for
+  /// commercial or proprietary software.
+  void _printLicenseWarnings(List<Map<String, String>> problematicPackages) {
+    final separator = '=' * 80;
+    final warningLine = '!' * 80;
+
+    print('\n');
+    print(separator);
+    print(warningLine);
+    print(
+        '!!!                           LICENSE WARNING                            !!!');
+    print(warningLine);
+    print(separator);
+    print('');
+    print(
+        '  ATTENTION: The following packages use licenses that may have legal');
+    print('  implications for commercial or proprietary software:');
+    print('');
+
+    for (final package in problematicPackages) {
+      print('  >>> ${package['name']} v${package['version']}');
+      print('      License: ${package['license']}');
+      print('');
+    }
+
+    print('  IMPORTANT LEGAL CONSIDERATIONS:');
+    print('');
+    print('  - GPL (v2/v3): Requires derived works to be released under GPL.');
+    print('    This may require you to open-source your entire application.');
+    print('');
+    print(
+        '  - LGPL (v2.1/v3): Allows linking but may require source disclosure');
+    print('    for modifications to the library itself.');
+    print('');
+    print('  - AGPL: Similar to GPL but with network use triggers.');
+    print('');
+    print('  RECOMMENDED ACTIONS:');
+    print('');
+    print('  1. Review the license terms carefully');
+    print('  2. Consult with your legal team');
+    print(
+        '  3. Consider finding alternative packages with more permissive licenses');
+    print('  4. Ensure compliance with all license requirements');
+    print('');
+    print(separator);
+    print(warningLine);
+    print(separator);
+    print('\n');
   }
 }

@@ -23,6 +23,7 @@ This tool simplifies compliance with open-source licensing requirements, saving 
   - GPL (v2, v3)
   - LGPL (v2.1, v3)
   - MPL-2.0
+- **License Compliance Warnings**: Automatically displays prominent warnings when potentially problematic licenses (GPL, LGPL, AGPL) are detected, helping you avoid legal issues in commercial software.
 - **Clean Dart File Generation**: Creates a well-structured `oss_licenses.dart` file with a list of `OssLicense` objects, containing:
     - `name`: Package name
     - `version`: Package version
