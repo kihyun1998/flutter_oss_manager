@@ -1,4 +1,5 @@
 import 'package:args/args.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_oss_manager/src/license_generator.dart';
 
 Future<void> main(List<String> args) async {
@@ -21,7 +22,7 @@ Future<void> main(List<String> args) async {
   final results = parser.parse(args);
 
   if (results['verbose']) {
-    print('Verbose output enabled.');
+    debugPrint('Verbose output enabled.');
   }
 
   final generator = LicenseGenerator();
@@ -40,7 +41,7 @@ Future<void> main(List<String> args) async {
       await generator.scanPackages(outputFilePath: outputFilePath);
     }
   } else {
-    print('Please provide a command: generate or scan.');
-    print(parser.usage);
+    debugPrint('Please provide a command: generate or scan.');
+    debugPrint(parser.usage);
   }
 }

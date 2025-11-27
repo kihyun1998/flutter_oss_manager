@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:yaml/yaml.dart';
 
@@ -85,7 +86,7 @@ class LicenseGenerator {
           'matchedPatterns': score['matchedPatterns'],
         });
 
-        print(
+        debugPrint(
             '  Matched via new heuristic: ${licenseInfo.licenseId} (${score['confidence'].toStringAsFixed(1)}% confidence, ${score['matches']} matches)');
       }
     }
@@ -96,13 +97,13 @@ class LicenseGenerator {
     // 가장 높은 신뢰도 결과 반환
     if (heuristicResults.isNotEmpty) {
       final bestResult = heuristicResults.first;
-      print(
+      debugPrint(
           '  Best heuristic match: ${bestResult['licenseId']} with ${bestResult['confidence'].toStringAsFixed(1)}% confidence');
       return bestResult['licenseId'];
     }
 
     // Step 2: 휴리스틱 매칭이 실패한 경우, 기존 유사도 기반 매칭 사용
-    print('  No heuristic match found, trying similarity matching...');
+    debugPrint('  No heuristic match found, trying similarity matching...');
 
     final scannedParagraphs = _normalizeText(licenseContent)
         .split(RegExp(r'\n\s*\n'))
@@ -152,12 +153,12 @@ class LicenseGenerator {
 
     // Step 3: 최종 결정
     if (highestAverageSimilarity > 0.5) {
-      print(
+      debugPrint(
           '  Matched via similarity: $bestMatch (${(highestAverageSimilarity * 100).toStringAsFixed(1)}%)');
       return bestMatch;
     }
 
-    print(
+    debugPrint(
         '  No match found (best similarity: ${(highestAverageSimilarity * 100).toStringAsFixed(1)}%)');
     return 'Unknown';
   }
@@ -203,7 +204,7 @@ class LicenseGenerator {
     buffer.writeln('];');
 
     output.writeAsStringSync(buffer.toString());
-    print('Generated Dart file: $outputPath');
+    debugPrint('Generated Dart file: $outputPath');
   }
 
   /// Generates a single [OssLicense] object from a specified license file.
@@ -216,7 +217,7 @@ class LicenseGenerator {
   ///                 Defaults to `lib/oss_licenses.dart` if not provided.
   void generateLicenses({String? licenseFilePath, String? outputFilePath}) {
     if (licenseFilePath == null) {
-      print(
+      debugPrint(
           'Error: License file path must be provided for the generate command.');
       return;
     }
@@ -242,11 +243,12 @@ class LicenseGenerator {
   /// [outputFilePath] The path where the generated Dart file will be saved.
   ///                 Defaults to `lib/oss_licenses.dart` if not provided.
   Future<void> scanPackages({String? outputFilePath}) async {
-    print('Scanning packages for licenses...');
+    debugPrint('Scanning packages for licenses...');
     final pubspecLockFile =
         File(p.join(Directory.current.path, 'pubspec.lock'));
     if (!pubspecLockFile.existsSync()) {
-      print('Error: pubspec.lock not found. Run \'flutter pub get\' first.');
+      debugPrint(
+          'Error: pubspec.lock not found. Run \'flutter pub get\' first.');
       return;
     }
     final pubspecLockContent = pubspecLockFile.readAsStringSync();
@@ -265,14 +267,14 @@ class LicenseGenerator {
         OssLicense? license;
         if (source == 'hosted') {
           final packageVersion = packageInfo['version'].toString();
-          print('- $packageName ($packageVersion) [hosted]');
+          debugPrint('- $packageName ($packageVersion) [hosted]');
           license =
               await _findAndSummarizeHostedLicense(packageName, packageVersion);
         } else if (source == 'sdk') {
-          print('- $packageName [sdk]');
+          debugPrint('- $packageName [sdk]');
           license = await _findAndSummarizeSdkLicense(packageName);
         } else {
-          print('- $packageName [unknown source: $source]');
+          debugPrint('- $packageName [unknown source: $source]');
         }
 
         if (license != null) {
@@ -299,7 +301,8 @@ class LicenseGenerator {
       _writeDartFile(
           p.join(Directory.current.path, outputFilePath), collectedLicenses);
     } else {
-      print('No output file path provided. Skipping .dart file generation.');
+      debugPrint(
+          'No output file path provided. Skipping .dart file generation.');
     }
   }
 
@@ -335,14 +338,14 @@ class LicenseGenerator {
             description: description);
       }
     }
-    print('  No license file found for $packageName');
+    debugPrint('  No license file found for $packageName');
     return null;
   }
 
   Future<OssLicense?> _findAndSummarizeSdkLicense(String packageName) async {
     final flutterSdkPath = await _getFlutterSdkPath();
     if (flutterSdkPath == null) {
-      print('  Flutter SDK path not found.');
+      debugPrint('  Flutter SDK path not found.');
       return null;
     }
 
@@ -362,7 +365,7 @@ class LicenseGenerator {
         sdkVersion = jsonOutput['frameworkVersion'];
       }
     } catch (e) {
-      print('Error getting Flutter SDK version: $e');
+      debugPrint('Error getting Flutter SDK version: $e');
     }
 
     if (packageName == 'flutter') {
@@ -388,7 +391,7 @@ class LicenseGenerator {
           repositoryUrl: repositoryUrl,
           description: description);
     }
-    print('  No license file found for SDK package: $packageName');
+    debugPrint('  No license file found for SDK package: $packageName');
     return null;
   }
 
@@ -409,7 +412,7 @@ class LicenseGenerator {
         return jsonOutput['flutterRoot'];
       }
     } catch (e) {
-      print('Error getting Flutter SDK path: $e');
+      debugPrint('Error getting Flutter SDK path: $e');
     }
     return null;
   }
@@ -423,47 +426,49 @@ class LicenseGenerator {
     final separator = '=' * 80;
     final warningLine = '!' * 80;
 
-    print('\n');
-    print(separator);
-    print(warningLine);
-    print(
+    debugPrint('\n');
+    debugPrint(separator);
+    debugPrint(warningLine);
+    debugPrint(
         '!!!                           LICENSE WARNING                            !!!');
-    print(warningLine);
-    print(separator);
-    print('');
-    print(
+    debugPrint(warningLine);
+    debugPrint(separator);
+    debugPrint('');
+    debugPrint(
         '  ATTENTION: The following packages use licenses that may have legal');
-    print('  implications for commercial or proprietary software:');
-    print('');
+    debugPrint('  implications for commercial or proprietary software:');
+    debugPrint('');
 
     for (final package in problematicPackages) {
-      print('  >>> ${package['name']} v${package['version']}');
-      print('      License: ${package['license']}');
-      print('');
+      debugPrint('  >>> ${package['name']} v${package['version']}');
+      debugPrint('      License: ${package['license']}');
+      debugPrint('');
     }
 
-    print('  IMPORTANT LEGAL CONSIDERATIONS:');
-    print('');
-    print('  - GPL (v2/v3): Requires derived works to be released under GPL.');
-    print('    This may require you to open-source your entire application.');
-    print('');
-    print(
+    debugPrint('  IMPORTANT LEGAL CONSIDERATIONS:');
+    debugPrint('');
+    debugPrint(
+        '  - GPL (v2/v3): Requires derived works to be released under GPL.');
+    debugPrint(
+        '    This may require you to open-source your entire application.');
+    debugPrint('');
+    debugPrint(
         '  - LGPL (v2.1/v3): Allows linking but may require source disclosure');
-    print('    for modifications to the library itself.');
-    print('');
-    print('  - AGPL: Similar to GPL but with network use triggers.');
-    print('');
-    print('  RECOMMENDED ACTIONS:');
-    print('');
-    print('  1. Review the license terms carefully');
-    print('  2. Consult with your legal team');
-    print(
+    debugPrint('    for modifications to the library itself.');
+    debugPrint('');
+    debugPrint('  - AGPL: Similar to GPL but with network use triggers.');
+    debugPrint('');
+    debugPrint('  RECOMMENDED ACTIONS:');
+    debugPrint('');
+    debugPrint('  1. Review the license terms carefully');
+    debugPrint('  2. Consult with your legal team');
+    debugPrint(
         '  3. Consider finding alternative packages with more permissive licenses');
-    print('  4. Ensure compliance with all license requirements');
-    print('');
-    print(separator);
-    print(warningLine);
-    print(separator);
-    print('\n');
+    debugPrint('  4. Ensure compliance with all license requirements');
+    debugPrint('');
+    debugPrint(separator);
+    debugPrint(warningLine);
+    debugPrint(separator);
+    debugPrint('\n');
   }
 }

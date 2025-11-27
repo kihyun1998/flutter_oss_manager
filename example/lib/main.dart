@@ -50,12 +50,14 @@ class LicenseListPage extends StatelessWidget {
                         if (await canLaunchUrl(url)) {
                           await launchUrl(url);
                         } else {
-                          // Handle error: could not launch URL
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                                content: Text(
-                                    'Could not launch ${license.repositoryUrl}')),
-                          );
+                          if (context.mounted) {
+                            /// Handle error: could not launch URL
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                  content: Text(
+                                      'Could not launch ${license.repositoryUrl}')),
+                            );
+                          }
                         }
                       },
                       child: Text(
