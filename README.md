@@ -38,7 +38,7 @@ To use the CLI, add `flutter_oss_manager` as a `dev_dependency` in your `pubspec
 
 ```yaml
 dev_dependencies:
-  flutter_oss_manager: ^1.0.2 # Replace with the latest version
+  flutter_oss_manager: ^1.1.0 # Replace with the latest version
 ```
 
 Then, install it by running:

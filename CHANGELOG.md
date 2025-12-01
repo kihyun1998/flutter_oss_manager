@@ -1,3 +1,7 @@
+## 1.1.0
+
+* **fix**: CLI tool이 dart:ui를 사용하지 않도록 수정하여 `dart run` 명령어로 정상 실행 가능하도록 개선
+
 ## 1.0.2
 
 * **feat**: Added prominent warnings for potentially problematic licenses (GPL, LGPL, AGPL) during scan.
