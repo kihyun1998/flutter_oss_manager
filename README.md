@@ -2,173 +2,128 @@
 
 [![pub package](https://img.shields.io/pub/v/flutter_oss_manager.svg)](https://pub.dev/packages/flutter_oss_manager)
 
-A powerful command-line interface (CLI) to streamline open-source license management in your Flutter projects. It scans all dependencies, identifies their licenses with high accuracy, and generates a single Dart file to easily display license information within your app.
-
-This tool simplifies compliance with open-source licensing requirements, saving you time and effort.
-
-## Key Features
-
-- **Automated CLI Tool**: A robust CLI for scanning dependencies and generating a `oss_licenses.dart` file.
-- **Comprehensive Dependency Scanning**: Scans `pubspec.yaml` and `pubspec.lock` to identify all direct and transitive Dart/Flutter dependencies.
-- **Accurate License Discovery**: Automatically finds and reads standard license files (`LICENSE`, `COPYING`, etc.) from package directories in the Pub cache.
-- **Flutter SDK License Handling**: Correctly identifies and includes licenses for Flutter SDK packages (e.g., `flutter`, `flutter_test`).
-- **Advanced Two-Tier License Detection**:
-  - **Tier 1: Heuristic Matching**: Uses a sophisticated system of regular expressions, unique keywords, and exclusion rules for high-confidence, precise license identification.
-  - **Tier 2: Similarity-Based Fallback**: If heuristic matching is inconclusive, it falls back to Jaccard similarity analysis against a comprehensive database of license templates.
-- **Broad License Support**: Detects a wide range of open-source licenses, including:
-  - MIT
-  - Apache-2.0
-  - BSD (2-Clause, 3-Clause, 4-Clause)
-  - ISC
-  - GPL (v2, v3)
-  - LGPL (v2.1, v3)
-  - MPL-2.0
-- **License Compliance Warnings**: Automatically displays prominent warnings when potentially problematic licenses (GPL, LGPL, AGPL) are detected, helping you avoid legal issues in commercial software.
-- **Clean Dart File Generation**: Creates a well-structured `oss_licenses.dart` file with a list of `OssLicense` objects, containing:
-    - `name`: Package name
-    - `version`: Package version
-    - `licenseText`: The full text of the license.
-    - `licenseSummary`: A concise summary of the license type (e.g., "MIT", "Apache-2.0").
-    - `repositoryUrl`: Link to the package's repository (if available).
-    - `description`: The package's description from `pubspec.yaml`.
+A CLI tool that scans open-source licenses in your Flutter project and generates a Dart file containing all license information.
 
 ## Installation
 
-To use the CLI, add `flutter_oss_manager` as a `dev_dependency` in your `pubspec.yaml`:
+Add to `dev_dependencies` in your `pubspec.yaml`:
 
 ```yaml
 dev_dependencies:
-  flutter_oss_manager: ^1.1.0 # Replace with the latest version
+  flutter_oss_manager: ^1.1.0
 ```
-
-Then, install it by running:
 
 ```bash
 flutter pub get
 ```
 
-## Usage
+## Commands
 
-### Scanning Project Dependencies
+### `scan` — Scan project dependency licenses
 
-The primary command is `scan`. Navigate to your project's root directory and run:
+Reads `pubspec.lock`, analyzes licenses for all dependencies, and generates an `oss_licenses.dart` file.
 
 ```bash
 dart run flutter_oss_manager scan
 ```
 
-This command will:
-1. Scan your `pubspec.lock` file.
-2. Find the license for each dependency.
-3. Generate a summary and the full license text.
-4. Create the `lib/oss_licenses.dart` file in your project.
+**Options:**
 
-To specify a different output location, use the `--output` (or `-o`) option:
+| Option | Short | Description | Default |
+|--------|-------|-------------|---------|
+| `--output` | `-o` | Output file path | `lib/oss_licenses.dart` |
 
 ```bash
-dart run flutter_oss_manager scan --output path/to/your/licenses.dart
+dart run flutter_oss_manager scan --output lib/src/licenses.dart
 ```
 
-### Generating a License for a Single File
+**What it does:**
 
-The `generate` command is useful for creating a license object from a single license file (e.g., your own project's `LICENSE` file).
+1. Reads all dependencies (hosted, sdk) from `pubspec.lock`.
+2. Finds license files (`LICENSE`, `COPYING`, etc.) in the Pub cache for each package.
+3. Includes licenses for Flutter SDK packages (`flutter`, `flutter_test`, `sky_engine`).
+4. Identifies the license type automatically.
+5. Warns if GPL/LGPL/AGPL licenses are detected.
+6. Generates the result as a Dart file.
+
+### `generate` — Convert a single license file
+
+Reads a single license file and converts it to a Dart file. Useful for including your own project's license.
 
 ```bash
-dart run flutter_oss_manager generate --license-file path/to/your/LICENSE --output lib/my_project_license.dart
+dart run flutter_oss_manager generate --license-file LICENSE --output lib/my_license.dart
 ```
 
-## Integrating into Your Flutter App
+**Options:**
 
-After generating `oss_licenses.dart`, you can import and use it to create a license page in your app. Here is a simple example:
+| Option | Short | Description | Required |
+|--------|-------|-------------|----------|
+| `--license-file` | `-l` | Path to the license file | Yes |
+| `--output` | `-o` | Output file path | No (default: `lib/oss_licenses.dart`) |
+
+### Global Options
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--verbose` | `-v` | Enable verbose output |
+
+## Generated File Structure
+
+The generated Dart file contains:
 
 ```dart
-// lib/main.dart
-import 'package:flutter/material.dart';
-import 'package:your_project_name/oss_licenses.dart'; // Adjust the import path if needed
-
-void main() {
-  runApp(const MyApp());
+class OssLicense {
+  final String name;           // Package name
+  final String version;        // Version
+  final String licenseText;    // Full license text
+  final String licenseSummary; // License type (e.g., "MIT", "Apache-2.0")
+  final String? repositoryUrl; // Repository URL
+  final String? description;   // Package description
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Open Source Licenses',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-      ),
-      home: const LicenseListPage(),
-    );
-  }
-}
-
-class LicenseListPage extends StatelessWidget {
-  const LicenseListPage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Open Source Licenses'),
-      ),
-      body: ListView.builder(
-        itemCount: ossLicenses.length,
-        itemBuilder: (context, index) {
-          final license = ossLicenses[index];
-          return Card(
-            margin: const EdgeInsets.all(8.0),
-            child: ExpansionTile(
-              title: Text('${license.name} v${license.version}'),
-              subtitle: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(license.licenseSummary),
-                  if (license.description != null) Padding(
-                    padding: const EdgeInsets.only(top: 4.0),
-                    child: Text(license.description!, style: Theme.of(context).textTheme.bodySmall),
-                  ),
-                  if (license.repositoryUrl != null) Padding(
-                    padding: const EdgeInsets.only(top: 4.0),
-                    child: Text(license.repositoryUrl!, style: Theme.of(context).textTheme.bodySmall),
-                  ),
-                ],
-              ),
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Text(license.licenseText),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
-    );
-  }
-}
+const List<OssLicense> ossLicenses = [ ... ];
 ```
 
-## License Detection Accuracy
+## Usage in Your App
 
-This package employs a sophisticated two-tier detection system to ensure high accuracy:
+Import the generated file and display the license list:
 
-1.  **Heuristic Pattern Matching (Primary)**: Utilizes a combination of regular expressions and unique keywords tailored to each license type. This method provides high-confidence detection for standard, well-formed licenses.
-2.  **Similarity-Based Matching (Fallback)**: If the heuristic approach does not yield a confident result, the tool falls back to a Jaccard similarity comparison. It tokenizes the license text and compares it against a database of known license templates.
+```dart
+import 'package:your_project/oss_licenses.dart';
 
-This dual approach ensures both speed and accuracy, providing robust identification even for licenses with minor variations.
+ListView.builder(
+  itemCount: ossLicenses.length,
+  itemBuilder: (context, index) {
+    final license = ossLicenses[index];
+    return ListTile(
+      title: Text('${license.name} v${license.version}'),
+      subtitle: Text(license.licenseSummary),
+      onTap: () {
+        // Navigate to a detail page showing license.licenseText
+      },
+    );
+  },
+);
+```
 
-## Known Limitations
+## License Detection
 
-- **Native Dependencies**: This tool currently focuses on Dart/Flutter dependencies defined in `pubspec.yaml`. It does not scan licenses for native dependencies from Gradle (Android) or CocoaPods (iOS).
-- **Custom License Formats**: While the detection system is robust, heavily modified or non-standard license files may not be identified correctly and might require manual verification.
+Licenses are identified in two stages:
 
-## Contributing
+1. **Heuristic matching**: Uses regex patterns and keywords for fast, high-confidence identification.
+2. **Similarity matching (fallback)**: If heuristic matching fails, compares against license templates using Jaccard similarity.
 
-Contributions are welcome! If you find a bug or have a feature request, please open an issue. If you want to contribute code, please feel free to submit a pull request.
+**Supported licenses:** MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, BSD-4-Clause, ISC, GPL-2.0, GPL-3.0, LGPL-2.1, LGPL-3.0, MPL-2.0
+
+## License Warnings
+
+When GPL, LGPL, or AGPL licenses are detected, a warning is displayed in the scan output. These licenses may impose source code disclosure obligations that could affect commercial software.
+
+## Limitations
+
+- Only scans Dart/Flutter dependencies. Native dependencies from Gradle (Android) or CocoaPods (iOS) are not included.
+- Non-standard or heavily modified license files may not be identified correctly.
 
 ## License
 
-This package is licensed under the [MIT License](LICENSE).
+[MIT License](LICENSE)
