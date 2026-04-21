@@ -5,18 +5,18 @@ Future<void> main(List<String> args) async {
   final parser = ArgParser();
   parser.addFlag('verbose', abbr: 'v', help: 'Show verbose output.');
 
-  final commandParser = ArgParser();
-  commandParser.addOption('output',
-      abbr: 'o',
-      help: 'Output .dart file path.',
-      defaultsTo: 'lib/oss_licenses.dart');
+  ArgParser buildCommandParser() => ArgParser()
+    ..addOption('output',
+        abbr: 'o',
+        help: 'Output .dart file path (main file; 3 sidecars are derived).',
+        defaultsTo: 'lib/oss_licenses.g.dart');
 
   parser.addCommand(
       'generate',
-      commandParser
+      buildCommandParser()
         ..addOption('license-file',
             abbr: 'l', help: 'Path to the license file.', mandatory: true));
-  parser.addCommand('scan', commandParser);
+  parser.addCommand('scan', buildCommandParser());
 
   final results = parser.parse(args);
 

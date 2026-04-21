@@ -10,7 +10,7 @@ Add to `dev_dependencies` in your `pubspec.yaml`:
 
 ```yaml
 dev_dependencies:
-  flutter_oss_manager: ^1.1.0
+  flutter_oss_manager: ^2.0.0
 ```
 
 ```bash
@@ -21,7 +21,7 @@ flutter pub get
 
 ### `scan` — Scan project dependency licenses
 
-Reads `pubspec.lock`, analyzes licenses for all dependencies, and generates an `oss_licenses.dart` file.
+Reads `pubspec.lock`, analyzes licenses for all dependencies, and generates an `oss_licenses.g.dart` file (plus 3 platform decoder sidecars).
 
 ```bash
 dart run flutter_oss_manager scan
@@ -31,10 +31,10 @@ dart run flutter_oss_manager scan
 
 | Option | Short | Description | Default |
 |--------|-------|-------------|---------|
-| `--output` | `-o` | Output file path | `lib/oss_licenses.dart` |
+| `--output` | `-o` | Output file path (main file; 3 sidecars are derived) | `lib/oss_licenses.g.dart` |
 
 ```bash
-dart run flutter_oss_manager scan --output lib/src/licenses.dart
+dart run flutter_oss_manager scan --output lib/src/licenses.g.dart
 ```
 
 **What it does:**
@@ -59,7 +59,7 @@ dart run flutter_oss_manager generate --license-file LICENSE --output lib/my_lic
 | Option | Short | Description | Required |
 |--------|-------|-------------|----------|
 | `--license-file` | `-l` | Path to the license file | Yes |
-| `--output` | `-o` | Output file path | No (default: `lib/oss_licenses.dart`) |
+| `--output` | `-o` | Output file path (main file; 3 sidecars are derived) | No (default: `lib/oss_licenses.g.dart`) |
 
 ### Global Options
 
@@ -69,41 +69,172 @@ dart run flutter_oss_manager generate --license-file LICENSE --output lib/my_lic
 
 ## Generated File Structure
 
-The generated Dart file contains:
+The generator emits **four files** per `--output` target: one main file plus
+three platform-specific decoder sidecars. For the default output path
+`lib/oss_licenses.g.dart`:
+
+```
+lib/
+  oss_licenses.g.dart                  # public API + encoded payload (import this)
+  oss_licenses_decoder_stub.g.dart     # fallback that throws UnsupportedError
+  oss_licenses_decoder_io.g.dart       # dart:io gzip implementation
+  oss_licenses_decoder_web.g.dart      # dart:js_interop + DecompressionStream
+```
+
+Each file starts with a tool-owned header:
+
+```dart
+// GENERATED CODE - DO NOT MODIFY BY HAND
+// flutter_oss_manager: 2.0.0
+// content-hash: crc32:a1b2c3d4
+// ignore_for_file: type=lint
+```
+
+- `content-hash` is a CRC32 of the file body and changes whenever the
+  generator's input (your license list) changes. It's informational —
+  there's no runtime enforcement — but makes tamper/staleness diffs stand
+  out in code review.
+- `type=lint` disables all lint checks for generated files (payload lines
+  are inherently long).
+- Regenerating overwrites existing files silently, matching `build_runner`
+  conventions. The `.g.dart` suffix is the warning; don't hand-edit.
+
+The main file selects a decoder at compile time via conditional imports. **Only
+import the main file in your app code** — never reference the sidecar files
+directly. If you use VCS, commit all four together; deleting any one breaks
+compilation.
+
+The main file exposes:
 
 ```dart
 class OssLicense {
   final String name;           // Package name
   final String version;        // Version
-  final String licenseText;    // Full license text
+  final String licenseText;    // Full license text (plain String, zero-cost read)
   final String licenseSummary; // License type (e.g., "MIT", "Apache-2.0")
   final String? repositoryUrl; // Repository URL
   final String? description;   // Package description
 }
 
-const List<OssLicense> ossLicenses = [ ... ];
+class OssLicensesHandle {
+  List<OssLicense> get licenses;
+  void close();                // Idempotent; releases refcount
+}
+
+class OssLicenses {
+  static Future<OssLicensesHandle> acquire();  // Decode lazily, refcounted
+  static void resetForTest();                  // Test-only
+}
 ```
+
+### Memory behavior
+
+The entire license list is stored as a **single gzip+base64-encoded JSON blob**
+in a `const String`. At startup, only this compact string (tens to hundreds
+of KB, depending on project size) is resident. Nothing is decoded until you
+call `OssLicenses.acquire()`.
+
+`acquire()` decodes the blob once and hands out a reference-counted
+`OssLicensesHandle`. Concurrent callers share the same decoded list. When
+all handles are closed, the cache is dropped and the decoded strings become
+garbage-collectable. The lifecycle is under your control, not the library's.
+
+Typical pattern:
+
+- `acquire()` when entering a license screen or dialog.
+- `close()` on dispose, to release memory when the user navigates away.
+
+The lifecycle is all-or-nothing: either the list is loaded (fully) or not.
+There is no per-license lazy field access. This gives you predictable GC
+behavior and zero per-access cost, at the price of explicit lifecycle
+management.
+
+### Dev note: hot reload
+
+`OssLicenses` caches state in static fields, which survive hot reload. After
+regenerating `oss_licenses.g.dart` during development, use **hot restart** (not
+hot reload) so the new payload takes effect.
+
+## Platform support
+
+| Platform | Supported | Notes |
+|---|---|---|
+| iOS / Android | Yes | `dart:io` gzip |
+| macOS / Windows / Linux (desktop) | Yes | `dart:io` gzip |
+| Flutter Web (dart2js) | Yes | `DecompressionStream`; Chrome 80+, Firefox 113+, Safari 16.4+ |
+| Flutter Web (dart2wasm) | Yes | Same browser floor as dart2js |
+| Dart native CLI / VM | Yes | `dart:io` gzip |
+
+Dart SDK floor: **3.4.0**. Flutter SDK floor: **3.22.0**.
 
 ## Usage in Your App
 
-Import the generated file and display the license list:
+```dart
+import 'package:your_project/oss_licenses.g.dart';
+
+class LicensePage extends StatefulWidget {
+  const LicensePage({super.key});
+  @override
+  State<LicensePage> createState() => _LicensePageState();
+}
+
+class _LicensePageState extends State<LicensePage> {
+  late final Future<OssLicensesHandle> _handle = OssLicenses.acquire();
+
+  @override
+  void dispose() {
+    _handle.then((h) => h.close());
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        appBar: AppBar(title: const Text('Licenses')),
+        body: FutureBuilder<OssLicensesHandle>(
+          future: _handle,
+          builder: (_, snap) {
+            if (!snap.hasData) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            final licenses = snap.data!.licenses;
+            return ListView.builder(
+              itemCount: licenses.length,
+              itemBuilder: (_, i) {
+                final l = licenses[i];
+                return ListTile(
+                  title: Text('${l.name} v${l.version}'),
+                  subtitle: Text(l.licenseSummary),
+                  // l.licenseText is a plain String field — access is free
+                  // once the handle is resolved.
+                );
+              },
+            );
+          },
+        ),
+      );
+}
+```
+
+Multiple screens/subsystems can call `acquire()` concurrently — the decoded
+list is shared via refcount. The cache is released only after every caller
+has called `close()`.
+
+### Migrating from 1.1.0
+
+The top-level `const ossLicenses` list is gone. Replace direct list access
+with the handle pattern shown above. If you previously used `ossLicenses`
+inside a `StatelessWidget`, convert it to a `StatefulWidget` (or an
+`InheritedWidget` / state-management provider) so the handle can be closed
+on dispose.
+
+For one-time eager loading at app startup:
 
 ```dart
-import 'package:your_project/oss_licenses.dart';
-
-ListView.builder(
-  itemCount: ossLicenses.length,
-  itemBuilder: (context, index) {
-    final license = ossLicenses[index];
-    return ListTile(
-      title: Text('${license.name} v${license.version}'),
-      subtitle: Text(license.licenseSummary),
-      onTap: () {
-        // Navigate to a detail page showing license.licenseText
-      },
-    );
-  },
-);
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final handle = await OssLicenses.acquire();
+  runApp(MyApp(licensesHandle: handle));
+}
 ```
 
 ## License Detection
@@ -123,6 +254,7 @@ When GPL, LGPL, or AGPL licenses are detected, a warning is displayed in the sca
 
 - Only scans Dart/Flutter dependencies. Native dependencies from Gradle (Android) or CocoaPods (iOS) are not included.
 - Non-standard or heavily modified license files may not be identified correctly.
+- On Flutter Web, browsers older than Chrome 80 / Firefox 113 / Safari 16.4 lack the `DecompressionStream` API required by the generated decoder.
 
 ## License
 
