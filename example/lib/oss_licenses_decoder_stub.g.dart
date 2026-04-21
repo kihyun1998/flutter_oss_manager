@@ -6,8 +6,7 @@
 import 'dart:async';
 import 'dart:typed_data';
 
-Future<Uint8List> decodeGzipBase64(String encoded) =>
-    throw UnsupportedError(
+Future<Uint8List> decodeGzipBase64(String encoded) => throw UnsupportedError(
       'flutter_oss_manager: no decoder available for this platform. '
       'Expected either dart:io or dart:js_interop to be available.',
     );

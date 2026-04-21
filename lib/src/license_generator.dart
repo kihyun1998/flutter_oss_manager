@@ -203,8 +203,7 @@ class LicenseGenerator {
   }
 
   static const String _generatorVersion = '2.0.0';
-  static const String _hashPlaceholderLine =
-      '// content-hash: crc32:00000000';
+  static const String _hashPlaceholderLine = '// content-hash: crc32:00000000';
 
   String _buildMainFileContent(SidecarPaths paths, String payload) {
     final stubName = p.basename(paths.stub);
@@ -669,4 +668,3 @@ Future<Uint8List> decodeGzipBase64(String encoded) async {
     print('\n');
   }
 }
-

@@ -65,7 +65,8 @@ class _LicenseListPageState extends State<LicenseListPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(license.licenseSummary),
-                      if (license.description != null) Text(license.description!),
+                      if (license.description != null)
+                        Text(license.description!),
                       if (license.repositoryUrl != null)
                         InkWell(
                           onTap: () async {

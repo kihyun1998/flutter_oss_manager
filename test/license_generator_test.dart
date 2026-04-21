@@ -28,8 +28,8 @@ void main() {
 
   /// Extracts the 8-hex content-hash from a generated file's header.
   String extractHash(String content) {
-    final m = RegExp(r'// content-hash: crc32:([0-9a-f]{8})')
-        .firstMatch(content);
+    final m =
+        RegExp(r'// content-hash: crc32:([0-9a-f]{8})').firstMatch(content);
     if (m == null) throw StateError('no content-hash header in file');
     return m.group(1)!;
   }

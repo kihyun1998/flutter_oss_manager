@@ -30,19 +30,17 @@ String encodePayload(List<OssLicense> licenses) {
 List<OssLicense> decodePayloadForTesting(String encoded) {
   final bytes = gzip.decode(base64.decode(encoded));
   final list = jsonDecode(utf8.decode(bytes)) as List;
-  return list
-      .map((j) {
-        final m = j as Map<String, dynamic>;
-        return OssLicense(
-          name: m['name'] as String,
-          version: m['version'] as String,
-          licenseText: m['licenseText'] as String,
-          licenseSummary: m['licenseSummary'] as String,
-          repositoryUrl: m['repositoryUrl'] as String?,
-          description: m['description'] as String?,
-        );
-      })
-      .toList(growable: false);
+  return list.map((j) {
+    final m = j as Map<String, dynamic>;
+    return OssLicense(
+      name: m['name'] as String,
+      version: m['version'] as String,
+      licenseText: m['licenseText'] as String,
+      licenseSummary: m['licenseSummary'] as String,
+      repositoryUrl: m['repositoryUrl'] as String?,
+      description: m['description'] as String?,
+    );
+  }).toList(growable: false);
 }
 
 /// Produces a gzip stream with a zeroed mtime and OS=unknown header,
@@ -53,10 +51,14 @@ Uint8List gzipDeterministic(List<int> data) {
   final isize = data.length & 0xFFFFFFFF;
   final b = BytesBuilder(copy: false);
   b.add(const [
-    0x1F, 0x8B,
+    0x1F,
+    0x8B,
     0x08,
     0x00,
-    0x00, 0x00, 0x00, 0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
     0x00,
     0xFF,
   ]);
