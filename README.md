@@ -75,14 +75,24 @@ The generated Dart file contains:
 class OssLicense {
   final String name;           // Package name
   final String version;        // Version
-  final String licenseText;    // Full license text
   final String licenseSummary; // License type (e.g., "MIT", "Apache-2.0")
   final String? repositoryUrl; // Repository URL
   final String? description;   // Package description
+
+  String get licenseText;      // Full license text (decoded on access)
 }
 
 const List<OssLicense> ossLicenses = [ ... ];
 ```
+
+License text is stored gzip+base64 encoded inside the generated file to
+minimise resident memory. The `licenseText` getter decodes on each call,
+producing a fresh, garbage-collectable `String` that is released when the
+caller drops its reference.
+
+> **Platform note:** The generated file imports `dart:io` for gzip decoding
+> and is **not compatible with Flutter Web**. Use on mobile, desktop, or
+> standalone Dart VM targets.
 
 ## Usage in Your App
 
