@@ -10,7 +10,7 @@ Add to `dev_dependencies` in your `pubspec.yaml`:
 
 ```yaml
 dev_dependencies:
-  flutter_oss_manager: ^2.0.0
+  flutter_oss_manager: ^2.1.0
 ```
 
 ```bash
@@ -32,6 +32,9 @@ dart run flutter_oss_manager scan
 | Option | Short | Description | Default |
 |--------|-------|-------------|---------|
 | `--output` | `-o` | Output file path (main file; 3 sidecars are derived) | `lib/oss_licenses.g.dart` |
+| `--offline` |  | Skip pub.dev; use cache + heuristic only | off |
+| `--refresh-cache` |  | Clear the cache and re-fetch everything | off |
+| `--no-cache` |  | Do not read or write the cache file | off |
 
 ```bash
 dart run flutter_oss_manager scan --output lib/src/licenses.g.dart
@@ -42,9 +45,54 @@ dart run flutter_oss_manager scan --output lib/src/licenses.g.dart
 1. Reads all dependencies (hosted, sdk) from `pubspec.lock`.
 2. Finds license files (`LICENSE`, `COPYING`, etc.) in the Pub cache for each package.
 3. Includes licenses for Flutter SDK packages (`flutter`, `flutter_test`, `sky_engine`).
-4. Identifies the license type automatically.
+4. Identifies the license type via the pipeline below (pub.dev → heuristic).
 5. Warns if GPL/LGPL/AGPL licenses are detected.
 6. Generates the result as a Dart file.
+
+### License Detection
+
+For each hosted package, the SPDX license identifier is resolved through a
+3-stage fallback pipeline:
+
+1. **Cache** — `.dart_tool/flutter_oss_manager/pub_license_cache.json`, keyed
+   by `<name>@<version>`. Hits return immediately with zero network traffic.
+   Bumping a package version in `pubspec.lock` naturally invalidates its
+   entry; no manual cache-busting needed.
+2. **pub.dev API** — `GET https://pub.dev/api/packages/<name>/score`. The
+   SPDX identifier is extracted from the `tags` array (`license:mit`,
+   `license:bsd-3-clause`, …). Classifier-only tags (`license:fsf-libre`,
+   `license:osi-approved`) are filtered out. Successful results are cached.
+3. **Heuristic** — Falls back to pattern/similarity matching against the
+   bundled license templates (the 2.0.x behavior). Used when pub.dev is
+   unreachable, the package isn't on pub.dev, the user passed `--offline`,
+   or `--no-cache` was set.
+
+SDK packages (`flutter`, `flutter_test`, `sky_engine`) always use the
+heuristic — pub.dev doesn't analyze them.
+
+Each package prints its source in the scan log, so mis-identifications are
+easy to attribute:
+
+```
+- args (2.4.2) [hosted]
+  → BSD-3-Clause [cache]
+- path (1.9.0) [hosted]
+  → BSD-3-Clause [pub-api]
+- my_internal_pkg (1.0.0) [hosted]
+  → MIT [heuristic]
+- obscure (0.0.1) [hosted]
+  → Unknown [negative]
+```
+
+The cache directory (`.dart_tool/`) is ignored by default `flutter create`
+`.gitignore` files, so the cache never ends up in version control. If you
+want to share the cache across CI builds, add
+`.dart_tool/flutter_oss_manager/` to your CI cache key.
+
+**Privacy note:** On first run (or `--refresh-cache`), the package names
+from `pubspec.lock` are sent to pub.dev to look up license metadata. These
+names are already public, but if your build environment must not reach the
+internet, pass `--offline`.
 
 ### `generate` — Convert a single license file
 

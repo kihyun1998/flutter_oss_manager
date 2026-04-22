@@ -1,0 +1,119 @@
+// GENERATED CODE - DO NOT MODIFY BY HAND
+// flutter_oss_manager: 2.0.0
+// content-hash: crc32:5287526d
+// ignore_for_file: type=lint
+//
+// The entire license list is stored as a gzip+base64-encoded JSON blob
+// below. Use `OssLicenses.acquire()` to obtain a reference-counted handle
+// to the decoded list, and call `handle.close()` when done. When all
+// handles are closed, the cache is released and becomes GC-eligible.
+//
+// Platform decoders are selected via conditional imports. Do not import
+// the sidecar decoder files directly — only this main file.
+//
+// Dev note: static cache survives hot reload. After regenerating this
+// file, use hot restart (not hot reload) to pick up the new payload.
+
+import 'dart:async';
+import 'dart:convert';
+
+import 'oss_licenses_decoder_stub.g.dart'
+    if (dart.library.io) 'oss_licenses_decoder_io.g.dart'
+    if (dart.library.js_interop) 'oss_licenses_decoder_web.g.dart';
+
+/// Information about a single open-source license used by the project.
+class OssLicense {
+  final String name;
+  final String version;
+  final String licenseText;
+  final String licenseSummary;
+  final String? repositoryUrl;
+  final String? description;
+
+  const OssLicense({
+    required this.name,
+    required this.version,
+    required this.licenseText,
+    required this.licenseSummary,
+    this.repositoryUrl,
+    this.description,
+  });
+
+  factory OssLicense._fromJson(Map<String, dynamic> j) => OssLicense(
+        name: j['name'] as String,
+        version: j['version'] as String,
+        licenseText: j['licenseText'] as String,
+        licenseSummary: j['licenseSummary'] as String,
+        repositoryUrl: j['repositoryUrl'] as String?,
+        description: j['description'] as String?,
+      );
+}
+
+/// A reference-counted handle to the decoded license list.
+///
+/// Obtain via [OssLicenses.acquire]. Call [close] when finished. When the
+/// last handle is closed, the cached list is released.
+class OssLicensesHandle {
+  /// The decoded list. Safe to read while this handle is open.
+  final List<OssLicense> licenses;
+  bool _closed = false;
+
+  OssLicensesHandle._(this.licenses);
+
+  /// Release this handle's reference. Idempotent.
+  void close() {
+    if (_closed) return;
+    _closed = true;
+    OssLicenses._releaseOne();
+  }
+}
+
+/// Lifecycle controller for the embedded license list.
+class OssLicenses {
+  static const String _payload =
+      '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';
+  static Future<List<OssLicense>>? _loading;
+  static int _refCount = 0;
+
+  /// Acquire a handle to the license list. First call decodes the blob;
+  /// subsequent calls share the same decoded list. Safe to call concurrently.
+  ///
+  /// Call [OssLicensesHandle.close] when done.
+  static Future<OssLicensesHandle> acquire() async {
+    _refCount++;
+    _loading ??= _decode();
+    try {
+      final list = await _loading!;
+      return OssLicensesHandle._(list);
+    } catch (_) {
+      _refCount--;
+      if (_refCount == 0) _loading = null;
+      rethrow;
+    }
+  }
+
+  /// Test-only: resets the cached state. Do not call in production code.
+  static void resetForTest() {
+    _loading = null;
+    _refCount = 0;
+  }
+
+  static void _releaseOne() {
+    _refCount--;
+    assert(
+      _refCount >= 0,
+      'OssLicenses: close() called more times than acquire()',
+    );
+    if (_refCount == 0) {
+      _loading = null;
+    }
+  }
+
+  static Future<List<OssLicense>> _decode() async {
+    final bytes = await decodeGzipBase64(_payload);
+    final list = jsonDecode(utf8.decode(bytes)) as List;
+    return List.unmodifiable(
+      list.map((j) => OssLicense._fromJson(j as Map<String, dynamic>)),
+    );
+  }
+}

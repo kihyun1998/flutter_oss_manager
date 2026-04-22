@@ -1,3 +1,29 @@
+## 2.1.0
+
+* **feature**: SPDX license identification now queries pub.dev's analysis
+  API first, falling back to the existing heuristic matcher when pub.dev is
+  unavailable, returns no license tag, or the package isn't hosted on
+  pub.dev (SDK packages, private hosts). Results are cached under
+  `.dart_tool/flutter_oss_manager/pub_license_cache.json` keyed by
+  `<name>@<version>`, so repeated scans of the same `pubspec.lock` require
+  zero network traffic.
+* **cli**: `scan` gains three flags:
+  * `--offline` — skip pub.dev; use cache + heuristic only.
+  * `--refresh-cache` — clear the existing cache and re-fetch everything.
+  * `--no-cache` — do not read or write the cache file for this run.
+* **concurrency**: Package scans run in batches of 8, so first-run scans
+  with a warm pub.dev no longer serialize HTTP round-trips.
+* **logging**: Each hosted package now prints the source of its SPDX
+  decision (`[cache]`, `[pub-api]`, `[heuristic]`, `[negative]`) for easier
+  debugging.
+* **compat**: No breaking changes. The generated `.g.dart` files are
+  byte-compatible with 2.0.0; SDK packages (`flutter`, `flutter_test`,
+  `sky_engine`) continue to use heuristic matching.
+* **privacy**: On first run (or after `--refresh-cache`), package names
+  from `pubspec.lock` are sent to pub.dev to look up license metadata. All
+  those names are already public information, but use `--offline` if your
+  build environment must not reach external services.
+
 ## 2.0.0
 
 > Upgrade path: **1.1.0 → 2.0.0 direct jump.** 1.2.0 was an internal iteration

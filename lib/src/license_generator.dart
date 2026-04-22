@@ -1,13 +1,23 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
 import 'package:yaml/yaml.dart';
 
+import 'license_cache.dart';
 import 'models/all_licenses.dart';
 import 'models/oss_license.dart';
 import 'models/template_license_info.dart';
 import 'payload_codec.dart';
+import 'pub_license_client.dart';
+
+/// Result of the 3-stage SPDX resolution pipeline.
+class _ResolvedSpdx {
+  const _ResolvedSpdx(this.spdx, this.source);
+  final String spdx;
+  final String source;
+}
 
 /// A utility class responsible for generating and scanning open-source licenses.
 ///
@@ -15,6 +25,21 @@ import 'payload_codec.dart';
 /// or to scan an entire Flutter project's dependencies to collect and summarize
 /// their licenses.
 class LicenseGenerator {
+  LicenseGenerator({
+    PubLicenseClient? pubClient,
+    LicenseCache? cache,
+    bool offline = false,
+    int concurrency = 8,
+  })  : _pubClient = pubClient ?? HttpPubLicenseClient(),
+        _cache = cache,
+        _offline = offline,
+        _concurrency = concurrency;
+
+  final PubLicenseClient _pubClient;
+  final LicenseCache? _cache;
+  final bool _offline;
+  final int _concurrency;
+
   final Map<String, TemplateLicenseInfo> _licensesMap = allLicenses;
   static const List<String> _licenseFileNames = [
     'LICENSE',
@@ -161,6 +186,69 @@ class LicenseGenerator {
     print(
         '  No match found (best similarity: ${(highestAverageSimilarity * 100).toStringAsFixed(1)}%)');
     return 'Unknown';
+  }
+
+  /// Test-only seam around [_resolveSpdx]. The `ForTesting` suffix signals
+  /// that production code should not call this.
+  Future<({String spdx, String source})> resolveSpdxForTesting({
+    required String packageName,
+    required String version,
+    required String licenseText,
+  }) async {
+    final r = await _resolveSpdx(
+      packageName: packageName,
+      version: version,
+      licenseText: licenseText,
+    );
+    return (spdx: r.spdx, source: r.source);
+  }
+
+  /// 3-stage SPDX resolution: cache → pub.dev API → heuristic.
+  /// Hosted packages only; SDK packages keep the heuristic-only path.
+  Future<_ResolvedSpdx> _resolveSpdx({
+    required String packageName,
+    required String version,
+    required String licenseText,
+  }) async {
+    final cache = _cache;
+
+    final cached = cache?.get(packageName, version);
+    if (cached != null) {
+      return _ResolvedSpdx(cached.spdx, 'cache');
+    }
+
+    if (!_offline) {
+      final spdx = await _pubClient.fetchSpdxId(packageName, version);
+      if (spdx != null) {
+        cache?.put(
+          packageName,
+          version,
+          CachedLicense(
+            spdx: spdx,
+            source: CacheSource.pubApi,
+            fetchedAt: DateTime.now().toUtc(),
+          ),
+        );
+        return _ResolvedSpdx(spdx, 'pub-api');
+      }
+    }
+
+    final heuristic = _summarizeLicense(licenseText);
+    final source =
+        heuristic == 'Unknown' ? CacheSource.negative : CacheSource.heuristic;
+    cache?.put(
+      packageName,
+      version,
+      CachedLicense(
+        spdx: heuristic,
+        source: source,
+        fetchedAt: DateTime.now().toUtc(),
+      ),
+    );
+    return _ResolvedSpdx(
+      heuristic,
+      source == CacheSource.negative ? 'negative' : 'heuristic',
+    );
   }
 
   /// Writes the 4 generated files (main + stub/io/web decoders). Silently
@@ -451,43 +539,43 @@ Future<Uint8List> decodeGzipBase64(String encoded) async {
     final pubspecLockContent = pubspecLockFile.readAsStringSync();
     final pubspecLockMap = loadYaml(pubspecLockContent) as YamlMap;
 
-    final List<OssLicense> collectedLicenses = [];
+    await _cache?.load();
+
     final List<Map<String, String>> problematicPackages = [];
 
     final packages = pubspecLockMap['packages'] as YamlMap?;
-    if (packages != null) {
-      for (final entry in packages.entries) {
-        final packageName = entry.key.toString();
-        final packageInfo = entry.value as YamlMap;
-        final source = packageInfo['source'].toString();
+    final entries = packages?.entries.toList() ?? const [];
+    final results = List<OssLicense?>.filled(entries.length, null);
 
-        OssLicense? license;
-        if (source == 'hosted') {
-          final packageVersion = packageInfo['version'].toString();
-          print('- $packageName ($packageVersion) [hosted]');
-          license =
-              await _findAndSummarizeHostedLicense(packageName, packageVersion);
-        } else if (source == 'sdk') {
-          print('- $packageName [sdk]');
-          license = await _findAndSummarizeSdkLicense(packageName);
-        } else {
-          print('- $packageName [unknown source: $source]');
-        }
+    // Process in fixed-size batches so that hosted packages hit pub.dev
+    // concurrently (capped at [_concurrency]) without flooding the API or
+    // reordering the output list.
+    for (var i = 0; i < entries.length; i += _concurrency) {
+      final end = (i + _concurrency) < entries.length
+          ? i + _concurrency
+          : entries.length;
+      await Future.wait([
+        for (var j = i; j < end; j++)
+          _scanOne(entries[j]).then((lic) => results[j] = lic),
+      ]);
+    }
 
-        if (license != null) {
-          collectedLicenses.add(license);
+    final List<OssLicense> collectedLicenses = [
+      for (final lic in results)
+        if (lic != null) lic,
+    ];
 
-          // Check if the license is problematic
-          if (_problematicLicenses.contains(license.licenseSummary)) {
-            problematicPackages.add({
-              'name': license.name,
-              'version': license.version,
-              'license': license.licenseSummary,
-            });
-          }
-        }
+    for (final license in collectedLicenses) {
+      if (_problematicLicenses.contains(license.licenseSummary)) {
+        problematicPackages.add({
+          'name': license.name,
+          'version': license.version,
+          'license': license.licenseSummary,
+        });
       }
     }
+
+    await _cache?.save();
 
     // Display warnings for problematic licenses
     if (problematicPackages.isNotEmpty) {
@@ -501,6 +589,40 @@ Future<Uint8List> decodeGzipBase64(String encoded) async {
       );
     } else {
       print('No output file path provided. Skipping .dart file generation.');
+    }
+  }
+
+  Future<OssLicense?> _scanOne(MapEntry<dynamic, dynamic> entry) async {
+    // Capture every [print] emitted while processing this one package into a
+    // buffer, then flush the buffer as a single atomic write. Without this,
+    // parallel batch workers interleave their "- name (ver)" headers and
+    // "  → spdx [source]" results, making the log unreadable.
+    final buf = StringBuffer();
+    final result = await runZoned<Future<OssLicense?>>(
+      () => _scanOneInner(entry),
+      zoneSpecification: ZoneSpecification(
+        print: (_, __, ___, line) => buf.writeln(line),
+      ),
+    );
+    stdout.write(buf.toString());
+    return result;
+  }
+
+  Future<OssLicense?> _scanOneInner(MapEntry<dynamic, dynamic> entry) async {
+    final packageName = entry.key.toString();
+    final packageInfo = entry.value as YamlMap;
+    final source = packageInfo['source'].toString();
+
+    if (source == 'hosted') {
+      final packageVersion = packageInfo['version'].toString();
+      print('- $packageName ($packageVersion) [hosted]');
+      return _findAndSummarizeHostedLicense(packageName, packageVersion);
+    } else if (source == 'sdk') {
+      print('- $packageName [sdk]');
+      return _findAndSummarizeSdkLicense(packageName);
+    } else {
+      print('- $packageName [unknown source: $source]');
+      return null;
     }
   }
 
@@ -526,12 +648,17 @@ Future<Uint8List> decodeGzipBase64(String encoded) async {
       final licenseFile = File(licenseFilePath);
       if (licenseFile.existsSync()) {
         final licenseContent = licenseFile.readAsStringSync();
-        final licenseSummary = _summarizeLicense(licenseContent);
+        final resolved = await _resolveSpdx(
+          packageName: packageName,
+          version: packageVersion,
+          licenseText: licenseContent,
+        );
+        print('  → ${resolved.spdx} [${resolved.source}]');
         return OssLicense(
             name: packageName,
             version: packageVersion,
             licenseText: licenseContent,
-            licenseSummary: licenseSummary,
+            licenseSummary: resolved.spdx,
             repositoryUrl: repositoryUrl,
             description: description);
       }
@@ -581,6 +708,7 @@ Future<Uint8List> decodeGzipBase64(String encoded) async {
     if (licenseFile.existsSync()) {
       final licenseContent = licenseFile.readAsStringSync();
       final licenseSummary = _summarizeLicense(licenseContent);
+      print('  → $licenseSummary [heuristic]');
       return OssLicense(
           name: packageName,
           version: sdkVersion,
