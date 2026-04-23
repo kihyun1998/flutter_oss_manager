@@ -230,5 +230,195 @@ dependency_overrides:
       ).compute();
       expect(missingBlock, isEmpty);
     });
+
+    test('diamond dependency: shared leaf is visited exactly once', () async {
+      // A → B → D
+      // A → C → D   (D must appear once; reader.read called once per node)
+      final root = _y('dependencies: { A: }');
+      final reader = FakePubspecReader({
+        'A': _y('dependencies: { B:, C: }'),
+        'B': _y('dependencies: { D: }'),
+        'C': _y('dependencies: { D: }'),
+        'D': _y('dependencies: {}'),
+      });
+
+      final result = await RuntimeDependencyGraph(
+        rootPubspec: root,
+        pubspecLockPackages: _stubLock(['A', 'B', 'C', 'D']),
+        reader: reader,
+      ).compute();
+
+      expect(result, {'A', 'B', 'C', 'D'});
+      // Every node read exactly once — no duplicate descent into D.
+      expect(reader.readCalls.where((n) => n == 'D').length, 1);
+      expect(reader.readCalls.length, 4);
+    });
+
+    test('mixed dependency declaration forms yield name-only keys', () async {
+      // Real pubspecs use git:, path:, sdk:, and version constraint forms
+      // for the same dependency slot. The graph walker must pull names from
+      // the map keys regardless of the value shape.
+      final root = _y('''
+dependencies:
+  hosted_ver: ^1.2.3
+  git_dep:
+    git:
+      url: "https://github.com/example/foo.git"
+      ref: main
+  path_dep:
+    path: ../foo
+  sdk_dep:
+    sdk: flutter
+''');
+      final reader = FakePubspecReader({
+        'hosted_ver': _y('dependencies: {}'),
+        'git_dep': _y('dependencies: {}'),
+        'path_dep': _y('dependencies: {}'),
+        'sdk_dep': _y('dependencies: {}'),
+      });
+
+      final result = await RuntimeDependencyGraph(
+        rootPubspec: root,
+        pubspecLockPackages:
+            _stubLock(['hosted_ver', 'git_dep', 'path_dep', 'sdk_dep']),
+        reader: reader,
+      ).compute();
+
+      expect(result, {'hosted_ver', 'git_dep', 'path_dep', 'sdk_dep'});
+    });
+
+    test(
+        'dev-only chain whose leaf also appears as a runtime-transitive leaf '
+        'is still included', () async {
+      // runtime: root → A → shared_leaf
+      // dev:     root → DevTool → shared_leaf
+      // The shared_leaf must survive even though a dev-only path also
+      // touches it.
+      final root = _y('''
+dependencies:
+  A:
+dev_dependencies:
+  DevTool:
+''');
+      final reader = FakePubspecReader({
+        'A': _y('dependencies: { shared_leaf: }'),
+        'DevTool': _y('dependencies: { shared_leaf: }'),
+        'shared_leaf': _y('dependencies: {}'),
+      });
+
+      final result = await RuntimeDependencyGraph(
+        rootPubspec: root,
+        pubspecLockPackages: _stubLock(['A', 'DevTool', 'shared_leaf']),
+        reader: reader,
+      ).compute();
+
+      expect(result, contains('shared_leaf'));
+      expect(result, isNot(contains('DevTool')));
+    });
+
+    test(
+        'package listed in both runtime dependencies: and dev_dependencies: '
+        'is kept (runtime wins)', () async {
+      // pub forbids this at resolve time, but a malformed pubspec in the
+      // wild shouldn't crash the walker — it should treat the name as
+      // runtime-reachable.
+      final root = _y('''
+dependencies:
+  dual:
+dev_dependencies:
+  dual:
+''');
+      final reader = FakePubspecReader({
+        'dual': _y('dependencies: {}'),
+      });
+
+      final result = await RuntimeDependencyGraph(
+        rootPubspec: root,
+        pubspecLockPackages: _stubLock(['dual']),
+        reader: reader,
+      ).compute();
+
+      expect(result, {'dual'});
+    });
+
+    test('package pubspec with only metadata (no dependencies: key) is a leaf',
+        () async {
+      final root = _y('dependencies: { A: }');
+      final reader = FakePubspecReader({
+        'A': _y('''
+name: leaf_pkg
+version: 1.0.0
+description: A package with no dependencies
+'''),
+      });
+
+      final result = await RuntimeDependencyGraph(
+        rootPubspec: root,
+        pubspecLockPackages: _stubLock(['A']),
+        reader: reader,
+      ).compute();
+
+      expect(result, {'A'});
+    });
+
+    test('pubspec with dependencies: null is treated as leaf (no crash)',
+        () async {
+      final root = _y('''
+dependencies:
+  A:
+''');
+      final reader = FakePubspecReader({
+        'A': _y('''
+name: A
+dependencies:
+'''),
+      });
+
+      final result = await RuntimeDependencyGraph(
+        rootPubspec: root,
+        pubspecLockPackages: _stubLock(['A']),
+        reader: reader,
+      ).compute();
+
+      expect(result, {'A'});
+    });
+
+    test('self-reference does not cause re-read', () async {
+      // A: dependencies: { A: }  — pub would forbid this, but defensive
+      // behavior: BFS must terminate and reader.read fires once.
+      final root = _y('dependencies: { A: }');
+      final reader = FakePubspecReader({
+        'A': _y('dependencies: { A: }'),
+      });
+
+      final result = await RuntimeDependencyGraph(
+        rootPubspec: root,
+        pubspecLockPackages: _stubLock(['A']),
+        reader: reader,
+      ).compute();
+
+      expect(result, {'A'});
+      expect(reader.readCalls, ['A']);
+    });
+
+    test('long linear chain terminates correctly', () async {
+      // A → B → C → … → J (10 nodes) — stress test for BFS bookkeeping.
+      const names = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
+      final pubspecs = <String, YamlMap>{};
+      for (var i = 0; i < names.length; i++) {
+        final next = i + 1 < names.length ? '${names[i + 1]}:' : '';
+        pubspecs[names[i]] = _y('dependencies: { $next }');
+      }
+      final reader = FakePubspecReader(pubspecs);
+
+      final result = await RuntimeDependencyGraph(
+        rootPubspec: _y('dependencies: { A: }'),
+        pubspecLockPackages: _stubLock(names),
+        reader: reader,
+      ).compute();
+
+      expect(result, names.toSet());
+      expect(reader.readCalls, names);
+    });
   });
 }
