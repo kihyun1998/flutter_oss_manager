@@ -41,7 +41,8 @@ YamlMap _stubLock(Iterable<String> names) {
 
 void main() {
   group('RuntimeDependencyGraph', () {
-    test('basic transitive traversal includes all reachable packages', () async {
+    test('basic transitive traversal includes all reachable packages',
+        () async {
       final root = _y('''
 dependencies:
   A:

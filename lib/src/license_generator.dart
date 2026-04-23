@@ -207,9 +207,8 @@ class LicenseGenerator {
       pubspecLockPackages: lockPackages,
       reader: reader,
     ).compute();
-    final filtered = entries
-        .where((e) => runtimeNames.contains(e.key.toString()))
-        .toList();
+    final filtered =
+        entries.where((e) => runtimeNames.contains(e.key.toString())).toList();
     final skipped = entries.length - filtered.length;
     print(
       'Runtime-only mode: keeping ${filtered.length} packages, '
@@ -635,7 +634,8 @@ Future<Uint8List> decodeGzipBase64(String encoded) async {
 
     // Display warnings for problematic licenses
     if (problematicPackages.isNotEmpty) {
-      _printLicenseWarnings(problematicPackages, runtimeOnlyActive: runtimeOnly);
+      _printLicenseWarnings(problematicPackages,
+          runtimeOnlyActive: runtimeOnly);
     }
 
     if (outputFilePath != null) {

@@ -63,7 +63,7 @@ class HttpPubLicenseClient implements PubLicenseClient {
     String? userAgent,
     Uri? baseUri,
   })  : userAgent = userAgent ??
-            'flutter_oss_manager/2.1.0 '
+            'flutter_oss_manager/2.2.0 '
                 '(+https://github.com/kihyun1998/flutter_oss_manager)',
         baseUri = baseUri ?? Uri.parse('https://pub.dev');
 

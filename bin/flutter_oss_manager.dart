@@ -35,8 +35,7 @@ Future<void> main(List<String> args) async {
         defaultsTo: false,
         negatable: false)
     ..addFlag('runtime-only',
-        help:
-            'Skip dev_dependencies and their transitive dependencies. Only '
+        help: 'Skip dev_dependencies and their transitive dependencies. Only '
             'packages reachable from the root pubspec.yaml dependencies: '
             'section are scanned.',
         defaultsTo: false,

@@ -1,3 +1,30 @@
+## 2.2.0
+
+* **feature**: `scan` gains a `--runtime-only` flag that restricts license
+  collection to packages reachable from the root `pubspec.yaml`
+  `dependencies:` section. `dev_dependencies` and their transitive packages
+  (`build_runner`, `flutter_lints`, `test`, `analyzer`, `leak_tracker`, …)
+  are excluded via a proper dependency graph walk that reads each package's
+  own pubspec. Packages reachable from both runtime and dev paths (e.g.
+  `collection`, `path`) are still included — if it ships with your app, it
+  appears in the output.
+* **logging**: Runtime-only mode prints a summary of kept vs. skipped
+  counts. When `--runtime-only` is *not* active and problematic licenses
+  are found, the warning footer now suggests re-running with the flag to
+  filter out dev-only false positives.
+* **graph sources**: The graph walker resolves pubspecs for all four
+  `pubspec.lock` source types: `hosted` (pub cache), `sdk` (Flutter SDK,
+  including the `sky_engine` fallback path under `bin/cache/pkg/`), `path`
+  (relative resolved against the project root), and `git` (pub cache git
+  checkouts).
+* **compat**: No breaking changes. Default behavior (scan all packages) is
+  unchanged. The generated `.g.dart` format is byte-compatible with 2.1.0.
+* **limitations**: pub workspaces (multi-package projects with
+  `resolution: workspace`) are not yet supported — the walker reads a
+  single root `pubspec.yaml`. The `PUB_CACHE` environment variable is
+  ignored (matches existing scan behavior); fix scheduled for a future
+  patch release.
+
 ## 2.1.0
 
 * **feature**: SPDX license identification now queries pub.dev's analysis

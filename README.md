@@ -10,7 +10,7 @@ Add to `dev_dependencies` in your `pubspec.yaml`:
 
 ```yaml
 dev_dependencies:
-  flutter_oss_manager: ^2.1.0
+  flutter_oss_manager: ^2.2.0
 ```
 
 ```bash
@@ -35,6 +35,7 @@ dart run flutter_oss_manager scan
 | `--offline` |  | Skip pub.dev; use cache + heuristic only | off |
 | `--refresh-cache` |  | Clear the cache and re-fetch everything | off |
 | `--no-cache` |  | Do not read or write the cache file | off |
+| `--runtime-only` |  | Scan only packages reachable from the root `dependencies:` — excludes `dev_dependencies` and their transitives | off |
 
 ```bash
 dart run flutter_oss_manager scan --output lib/src/licenses.g.dart
@@ -42,7 +43,9 @@ dart run flutter_oss_manager scan --output lib/src/licenses.g.dart
 
 **What it does:**
 
-1. Reads all dependencies (hosted, sdk) from `pubspec.lock`.
+1. Reads dependencies from `pubspec.lock`. With `--runtime-only`, the list
+   is filtered to packages reachable from the root `dependencies:` section
+   (dev tooling and its transitives are excluded).
 2. Finds license files (`LICENSE`, `COPYING`, etc.) in the Pub cache for each package.
 3. Includes licenses for Flutter SDK packages (`flutter`, `flutter_test`, `sky_engine`).
 4. Identifies the license type via the pipeline below (pub.dev → heuristic).
@@ -93,6 +96,54 @@ want to share the cache across CI builds, add
 from `pubspec.lock` are sent to pub.dev to look up license metadata. These
 names are already public, but if your build environment must not reach the
 internet, pass `--offline`.
+
+### Excluding dev dependencies
+
+By default, `scan` walks every entry in `pubspec.lock`, which includes
+`dev_dependencies` and their transitive packages (e.g. `build_runner`,
+`flutter_lints`, `test`, `analyzer`, `leak_tracker`). These tools are not
+bundled with your released app, and usually don't need to appear in
+user-facing license notices.
+
+To limit the scan to packages that actually ship with your app:
+
+```bash
+dart run flutter_oss_manager scan --runtime-only
+```
+
+This performs a dependency graph walk starting from the `dependencies:`
+section of your project's root `pubspec.yaml`, following each package's own
+`dependencies:` recursively. `dev_dependencies:` and
+`dependency_overrides:` are ignored at every level of the graph, not just
+at the root.
+
+**Shared packages are still included.** If a package is reachable from
+*both* a runtime and a dev path (for example, `collection` is used by
+Flutter itself *and* by `test`), it stays in the output — it ships with
+your app either way.
+
+The log shows how many packages were kept vs. skipped:
+
+```
+Scanning packages for licenses...
+Runtime-only mode: keeping 24 packages, skipping 20 dev/dev-transitive packages.
+- characters (1.4.0) [hosted]
+  → BSD-3-Clause [cache]
+...
+```
+
+The graph walker resolves pubspecs for every source type your lockfile can
+produce: `hosted` (pub cache), `sdk` (Flutter SDK, including the
+`sky_engine` fallback location), `path` (resolved relative to the project
+root), and `git` (pub cache git checkouts).
+
+**Known limitations:**
+
+- **pub workspaces** (Dart 3.6+ `resolution: workspace`) are not yet
+  supported — the walker assumes a single root `pubspec.yaml`. File an
+  issue if you need this.
+- The `PUB_CACHE` environment variable is ignored; the default pub cache
+  location is used. This matches the existing `scan` behavior.
 
 ### `generate` — Convert a single license file
 
