@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:yaml/yaml.dart';
 
+import 'dependency_graph.dart';
 import 'license_cache.dart';
 import 'models/all_licenses.dart';
 import 'models/oss_license.dart';
@@ -186,6 +187,35 @@ class LicenseGenerator {
     print(
         '  No match found (best similarity: ${(highestAverageSimilarity * 100).toStringAsFixed(1)}%)');
     return 'Unknown';
+  }
+
+  /// Computes the runtime-reachable subset of [entries] by walking the
+  /// dependency graph from the root project's `dependencies:` section,
+  /// excluding `dev_dependencies:` at every level.
+  ///
+  /// Exposed as a pure function (no direct filesystem access) so tests can
+  /// drive it with a [FakePubspecReader]. Logs the kept/skipped counts for
+  /// CLI transparency.
+  Future<List<MapEntry>> filterToRuntimeEntries({
+    required List<MapEntry> entries,
+    required YamlMap rootPubspec,
+    required YamlMap lockPackages,
+    required PubspecReader reader,
+  }) async {
+    final runtimeNames = await RuntimeDependencyGraph(
+      rootPubspec: rootPubspec,
+      pubspecLockPackages: lockPackages,
+      reader: reader,
+    ).compute();
+    final filtered = entries
+        .where((e) => runtimeNames.contains(e.key.toString()))
+        .toList();
+    final skipped = entries.length - filtered.length;
+    print(
+      'Runtime-only mode: keeping ${filtered.length} packages, '
+      'skipping $skipped dev/dev-transitive packages.',
+    );
+    return filtered;
   }
 
   /// Test-only seam around [_resolveSpdx]. The `ForTesting` suffix signals
@@ -528,7 +558,10 @@ Future<Uint8List> decodeGzipBase64(String encoded) async {
   ///
   /// [outputFilePath] The path where the generated Dart file will be saved.
   ///                 Defaults to `lib/oss_licenses.g.dart` if not provided.
-  Future<void> scanPackages({String? outputFilePath}) async {
+  Future<void> scanPackages({
+    String? outputFilePath,
+    bool runtimeOnly = false,
+  }) async {
     print('Scanning packages for licenses...');
     final pubspecLockFile =
         File(p.join(Directory.current.path, 'pubspec.lock'));
@@ -544,7 +577,30 @@ Future<Uint8List> decodeGzipBase64(String encoded) async {
     final List<Map<String, String>> problematicPackages = [];
 
     final packages = pubspecLockMap['packages'] as YamlMap?;
-    final entries = packages?.entries.toList() ?? const [];
+    var entries = packages?.entries.toList() ?? const <MapEntry>[];
+
+    if (runtimeOnly) {
+      final rootPubspecFile =
+          File(p.join(Directory.current.path, 'pubspec.yaml'));
+      if (!rootPubspecFile.existsSync()) {
+        print('Error: pubspec.yaml not found at project root.');
+        return;
+      }
+      final rootPubspec =
+          loadYaml(rootPubspecFile.readAsStringSync()) as YamlMap;
+      final reader = FilePubspecReader(
+        pubCachePath: _getPubCacheDir(),
+        flutterSdkPath: await _getFlutterSdkPath(),
+        projectRoot: Directory.current.path,
+      );
+      entries = await filterToRuntimeEntries(
+        entries: entries,
+        rootPubspec: rootPubspec,
+        lockPackages: packages ?? YamlMap(),
+        reader: reader,
+      );
+    }
+
     final results = List<OssLicense?>.filled(entries.length, null);
 
     // Process in fixed-size batches so that hosted packages hit pub.dev
@@ -579,7 +635,7 @@ Future<Uint8List> decodeGzipBase64(String encoded) async {
 
     // Display warnings for problematic licenses
     if (problematicPackages.isNotEmpty) {
-      _printLicenseWarnings(problematicPackages);
+      _printLicenseWarnings(problematicPackages, runtimeOnlyActive: runtimeOnly);
     }
 
     if (outputFilePath != null) {
@@ -748,7 +804,10 @@ Future<Uint8List> decodeGzipBase64(String encoded) async {
   /// This method displays a highly visible warning message when GPL, LGPL, or other
   /// copyleft licenses are detected, as these may have legal implications for
   /// commercial or proprietary software.
-  void _printLicenseWarnings(List<Map<String, String>> problematicPackages) {
+  void _printLicenseWarnings(
+    List<Map<String, String>> problematicPackages, {
+    required bool runtimeOnlyActive,
+  }) {
     final separator = '=' * 80;
     final warningLine = '!' * 80;
 
@@ -790,6 +849,16 @@ Future<Uint8List> decodeGzipBase64(String encoded) async {
         '  3. Consider finding alternative packages with more permissive licenses');
     print('  4. Ensure compliance with all license requirements');
     print('');
+    if (!runtimeOnlyActive) {
+      print(
+          '  TIP: If any of the above are dev-only dependencies (build_runner,');
+      print(
+          '       test tooling, lints, etc.) they will not ship with your app.');
+      print(
+          '       Re-run with --runtime-only to filter dev packages out before');
+      print('       evaluating compliance risk.');
+      print('');
+    }
     print(separator);
     print(warningLine);
     print(separator);

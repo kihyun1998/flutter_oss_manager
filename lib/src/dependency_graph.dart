@@ -1,5 +1,7 @@
 import 'dart:collection';
+import 'dart:io';
 
+import 'package:path/path.dart' as p;
 import 'package:yaml/yaml.dart';
 
 /// Resolves a package's `pubspec.yaml` content given its entry from the
@@ -96,5 +98,129 @@ class RuntimeDependencyGraph {
     final deps = pubspec['dependencies'];
     if (deps is! YamlMap) return const [];
     return deps.keys.map((k) => k.toString());
+  }
+}
+
+/// Reads package pubspecs from the real filesystem. Supports the four source
+/// types that `pubspec.lock` produces: `hosted`, `sdk`, `path`, `git`.
+///
+/// Constructor takes pre-computed paths instead of probing the environment
+/// itself — that keeps this class easy to test with a temp directory and
+/// leaves Flutter SDK / pub cache resolution to the caller (which already
+/// has helpers for both in `LicenseGenerator`).
+class FilePubspecReader implements PubspecReader {
+  FilePubspecReader({
+    required this.pubCachePath,
+    required this.flutterSdkPath,
+    required this.projectRoot,
+  });
+
+  final String pubCachePath;
+
+  /// Flutter SDK root. `null` means SDK packages are treated as leaves
+  /// silently (useful for dart-only CI environments).
+  final String? flutterSdkPath;
+
+  /// Used to resolve relative `path:` sources from the project's
+  /// `pubspec.lock`.
+  final String projectRoot;
+
+  @override
+  Future<YamlMap?> read({
+    required String packageName,
+    required YamlMap lockEntry,
+  }) async {
+    final source = lockEntry['source']?.toString();
+    switch (source) {
+      case 'hosted':
+        return _readHosted(packageName, lockEntry);
+      case 'sdk':
+        return _readSdk(packageName);
+      case 'path':
+        return _readPath(lockEntry);
+      case 'git':
+        return _readGit(packageName, lockEntry);
+      default:
+        return null;
+    }
+  }
+
+  Future<YamlMap?> _readHosted(String name, YamlMap lockEntry) {
+    final version = lockEntry['version']?.toString();
+    if (version == null) return Future.value(null);
+    // Matches the existing hardcoded pub.dev path in
+    // LicenseGenerator._findAndSummarizeHostedLicense. Custom pub servers
+    // are not supported here for the same reason.
+    final path = p.join(
+      pubCachePath,
+      'hosted',
+      'pub.dev',
+      '$name-$version',
+      'pubspec.yaml',
+    );
+    return _tryReadPubspec(path);
+  }
+
+  Future<YamlMap?> _readSdk(String name) async {
+    if (flutterSdkPath == null) return null;
+    // Most SDK packages live under <sdk>/packages/<name>/. `sky_engine` is
+    // the known exception at <sdk>/bin/cache/pkg/<name>/. Try both silently
+    // — if neither exists we return null without a warning, because this
+    // mostly indicates an SDK layout we don't model (future Flutter
+    // versions) rather than a real error.
+    final candidates = [
+      p.join(flutterSdkPath!, 'packages', name, 'pubspec.yaml'),
+      p.join(flutterSdkPath!, 'bin', 'cache', 'pkg', name, 'pubspec.yaml'),
+    ];
+    for (final path in candidates) {
+      final result = await _tryReadPubspec(path, warnOnMissing: false);
+      if (result != null) return result;
+    }
+    return null;
+  }
+
+  Future<YamlMap?> _readPath(YamlMap lockEntry) {
+    final description = lockEntry['description'];
+    if (description is! YamlMap) return Future.value(null);
+    final rawPath = description['path']?.toString();
+    if (rawPath == null) return Future.value(null);
+    final isRelative = description['relative'] == true;
+    final basePath = isRelative ? p.join(projectRoot, rawPath) : rawPath;
+    return _tryReadPubspec(p.join(basePath, 'pubspec.yaml'));
+  }
+
+  Future<YamlMap?> _readGit(String name, YamlMap lockEntry) {
+    final description = lockEntry['description'];
+    if (description is! YamlMap) return Future.value(null);
+    final resolvedRef = description['resolved-ref']?.toString();
+    if (resolvedRef == null) return Future.value(null);
+    final subPath = description['path']?.toString() ?? '.';
+    // pub checks git deps out to <pub-cache>/git/<name>-<resolved-ref>/.
+    final checkoutDir = p.join(pubCachePath, 'git', '$name-$resolvedRef');
+    return _tryReadPubspec(p.join(checkoutDir, subPath, 'pubspec.yaml'));
+  }
+
+  Future<YamlMap?> _tryReadPubspec(
+    String filePath, {
+    bool warnOnMissing = true,
+  }) async {
+    final file = File(filePath);
+    if (!file.existsSync()) {
+      if (warnOnMissing) {
+        // Keep this log lightweight — the graph walker recovers by treating
+        // the package as a leaf, so we don't want to alarm users. Just
+        // enough signal to notice a systemic cache miss during --verbose.
+        print('  [graph] pubspec not found at $filePath (treating as leaf)');
+      }
+      return null;
+    }
+    try {
+      final content = await file.readAsString();
+      final parsed = loadYaml(content);
+      return parsed is YamlMap ? parsed : null;
+    } on Object catch (e) {
+      print('  [graph] failed to read pubspec at $filePath: $e');
+      return null;
+    }
   }
 }

@@ -33,6 +33,13 @@ Future<void> main(List<String> args) async {
     ..addFlag('no-cache',
         help: 'Do not read or write the SPDX cache file.',
         defaultsTo: false,
+        negatable: false)
+    ..addFlag('runtime-only',
+        help:
+            'Skip dev_dependencies and their transitive dependencies. Only '
+            'packages reachable from the root pubspec.yaml dependencies: '
+            'section are scanned.',
+        defaultsTo: false,
         negatable: false);
   parser.addCommand('scan', scanParser);
 
@@ -57,6 +64,7 @@ Future<void> main(List<String> args) async {
       final offline = command['offline'] as bool;
       final refresh = command['refresh-cache'] as bool;
       final noCache = command['no-cache'] as bool;
+      final runtimeOnly = command['runtime-only'] as bool;
 
       LicenseCache? cache;
       if (!noCache) {
@@ -66,7 +74,10 @@ Future<void> main(List<String> args) async {
       }
 
       final generator = LicenseGenerator(cache: cache, offline: offline);
-      await generator.scanPackages(outputFilePath: outputFilePath);
+      await generator.scanPackages(
+        outputFilePath: outputFilePath,
+        runtimeOnly: runtimeOnly,
+      );
     }
   } else {
     print('Please provide a command: generate or scan.');
