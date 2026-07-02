@@ -24,9 +24,8 @@ void main() {
   });
 
   test('main file declares the OssLicenses lifecycle API', () {
-    final main = renderGeneratedFiles([sample], 'lib/oss_licenses.g.dart')
-        .main
-        .content;
+    final main =
+        renderGeneratedFiles([sample], 'lib/oss_licenses.g.dart').main.content;
     expect(main, contains('class OssLicense'));
     expect(main, contains('class OssLicensesHandle'));
     expect(main, contains('class OssLicenses'));
@@ -127,7 +126,7 @@ void main() {
           .group(1)!;
     }
 
-    expect(mainHash('first license'),
-        isNot(mainHash('second different license')));
+    expect(
+        mainHash('first license'), isNot(mainHash('second different license')));
   });
 }
