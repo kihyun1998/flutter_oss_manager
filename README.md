@@ -238,10 +238,18 @@ call `OssLicenses.acquire()`.
 all handles are closed, the cache is dropped and the decoded strings become
 garbage-collectable. The lifecycle is under your control, not the library's.
 
-Typical pattern:
+Choose by lifetime:
 
-- `acquire()` when entering a license screen or dialog.
-- `close()` on dispose, to release memory when the user navigates away.
+- **One-shot access** (build a list once, export data, run a check) — use the
+  scoped helper. It acquires, runs your callback with the decoded list, and
+  releases the reference for you in a `finally`, so you can't forget to close:
+
+  ```dart
+  final count = await OssLicenses.use((licenses) => licenses.length);
+  ```
+
+- **Long-lived holder** (a screen that shows licenses until dismissed) —
+  `acquire()` on entry, keep the handle, `close()` on dispose.
 
 The lifecycle is all-or-nothing: either the list is loaded (fully) or not.
 There is no per-license lazy field access. This gives you predictable GC

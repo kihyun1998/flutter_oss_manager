@@ -83,9 +83,11 @@ $_hashPlaceholderLine
 // ignore_for_file: type=lint
 //
 // The entire license list is stored as a gzip+base64-encoded JSON blob
-// below. Use `OssLicenses.acquire()` to obtain a reference-counted handle
-// to the decoded list, and call `handle.close()` when done. When all
-// handles are closed, the cache is released and becomes GC-eligible.
+// below. For one-shot access prefer `OssLicenses.use((licenses) { ... })`,
+// which releases the reference for you. For a long-lived holder, call
+// `OssLicenses.acquire()` to obtain a reference-counted handle and
+// `handle.close()` when done. When all handles are closed, the cache is
+// released and becomes GC-eligible.
 //
 // Platform decoders are selected via conditional imports. Do not import
 // the sidecar decoder files directly — only this main file.
@@ -170,11 +172,31 @@ class OssLicenses {
     }
   }
 
+  /// Runs [body] with the decoded license list and releases the reference when
+  /// it completes — even if [body] throws. Prefer this for one-shot access:
+  /// you never hold, or forget to close, a handle. Returns whatever [body]
+  /// returns; [body] may be sync or async.
+  static Future<T> use<T>(
+    FutureOr<T> Function(List<OssLicense> licenses) body,
+  ) async {
+    final handle = await acquire();
+    try {
+      return await body(handle.licenses);
+    } finally {
+      handle.close();
+    }
+  }
+
   /// Test-only: resets the cached state. Do not call in production code.
   static void resetForTest() {
     _loading = null;
     _refCount = 0;
   }
+
+  /// Test-only: the current outstanding-handle count. Do not use in
+  /// production code — it exists so tests can assert that [use] releases its
+  /// reference (returns to 0) even when the callback throws.
+  static int get refCountForTest => _refCount;
 
   static void _releaseOne() {
     _refCount--;

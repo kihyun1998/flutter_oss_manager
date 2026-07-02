@@ -35,6 +35,15 @@ void main() {
     expect(main, contains('if (dart.library.js_interop)'));
   });
 
+  test('main file exposes the scoped use() helper', () {
+    final main =
+        renderGeneratedFiles([sample], 'lib/oss_licenses.g.dart').main.content;
+    expect(main, contains('static Future<T> use<T>('));
+    expect(main, contains('FutureOr<T> Function(List<OssLicense>'));
+    // acquire()/close() stay for the long-lived pattern.
+    expect(main, contains('Future<OssLicensesHandle> acquire()'));
+  });
+
   test('every file carries the standard generated header', () {
     final files = renderGeneratedFiles([sample], 'lib/oss_licenses.g.dart');
     for (final f in files.all) {

@@ -50,6 +50,11 @@ Produced as **data** by a pure renderer (`renderGeneratedFiles`), so the file
 format is verifiable without writing to disk; the caller performs the actual
 write. Each file's content already has its `content-hash` (crc32) embedded.
 
+The generated `OssLicenses` exposes a reference-counted lifecycle: `use(body)`
+is the safe default (acquires, runs the callback with the decoded list, and
+releases in a `finally`); `acquire()` / `OssLicensesHandle.close()` are the
+lower-level path for long-lived holders.
+
 ### Flutter SDK probe
 
 Resolves the Flutter SDK's root path and framework version in a single
