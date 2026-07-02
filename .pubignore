@@ -1,3 +1,17 @@
+# pub uses this file INSTEAD of .gitignore when it exists, so build outputs and
+# tool dirs must be re-listed here or they leak into the published archive.
+build/
+.dart_tool/
+coverage/
+
+# Dev/meta docs, planning notes, and CI — not part of the published package.
+docs/
+CONTEXT.md
 CODE.md
+*_plan.md
+test_license.txt
+.github/
+
+# codemd tooling
 codemd*
 .codeignore

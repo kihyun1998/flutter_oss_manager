@@ -1,3 +1,26 @@
+## 2.3.0
+
+* **feature**: the generated `OssLicenses` gains a scoped
+  `use((licenses) { ... })` helper that acquires a handle, runs your callback
+  with the decoded list, and releases the reference in a `finally` — even if the
+  callback throws. Prefer it for one-shot access so a forgotten `close()` can no
+  longer pin the decoded blob for the app's lifetime. `acquire()` /
+  `handle.close()` remain for long-lived holders.
+* **refactor**: the license generator was decomposed into focused, independently
+  tested modules — a pure generated-file renderer, a `PackageLocator` that owns
+  where each dependency lives on disk, a pure `matchLicense` returning a
+  `MatchResult`, and a memoized Flutter SDK probe. No change to the CLI or the
+  generated consumer API beyond the additive `use()` above.
+* **perf**: a scan now spawns `flutter --version` at most once (previously twice
+  per SDK package) and reuses a single keep-alive HTTP connection for all
+  pub.dev lookups instead of one per package.
+* **fix**: a plain (non `--runtime-only`) scan no longer probes the Flutter SDK,
+  so pure-Dart / pure-hosted projects without Flutter on `PATH` no longer emit a
+  spurious SDK error.
+* **chore**: the version stamped into generated file headers is now sourced from
+  a single constant kept in sync with `pubspec.yaml`, and CI runs format,
+  analyze, and tests for both the package and the example.
+
 ## 2.2.0
 
 * **feature**: `scan` gains a `--runtime-only` flag that restricts license

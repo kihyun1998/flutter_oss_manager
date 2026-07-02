@@ -3,4 +3,4 @@
 /// Mirrors `version:` in `pubspec.yaml` (a test enforces they stay equal).
 /// Used for the pub.dev User-Agent and stamped into the header of every
 /// generated file, so bump it here whenever the pubspec version changes.
-const String packageVersion = '2.2.0';
+const String packageVersion = '2.3.0';
