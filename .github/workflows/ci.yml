@@ -27,9 +27,10 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      # Generated *.g.dart files carry a tool-computed content-hash over their
-      # exact bytes, so `dart format` must not touch them (it would invalidate
-      # the hash). Format-check the hand-written sources only.
+      # Generated *.g.dart files are excluded from formatting on purpose — the
+      # emitted format is language-version-dependent and they carry a
+      # content-hash over their exact bytes. See docs/adr/0001. Format-check the
+      # hand-written sources only.
       - name: Format check
         run: dart format --output=none --set-exit-if-changed $(git ls-files '*.dart' ':!:*.g.dart')
 
