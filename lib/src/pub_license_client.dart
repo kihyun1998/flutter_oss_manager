@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'version.dart';
+
 /// Looks up the SPDX license identifier of a pub.dev package.
 abstract class PubLicenseClient {
   Future<String?> fetchSpdxId(String name, String version);
@@ -68,7 +70,7 @@ class HttpPubLicenseClient implements PubLicenseClient {
     String? userAgent,
     Uri? baseUri,
   })  : userAgent = userAgent ??
-            'flutter_oss_manager/2.2.0 '
+            'flutter_oss_manager/$packageVersion '
                 '(+https://github.com/kihyun1998/flutter_oss_manager)',
         baseUri = baseUri ?? Uri.parse('https://pub.dev');
 

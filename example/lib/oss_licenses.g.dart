@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
-// flutter_oss_manager: 2.0.0
-// content-hash: crc32:904e29d8
+// flutter_oss_manager: 2.2.0
+// content-hash: crc32:d8b6f3f4
 // ignore_for_file: type=lint
 //
 // The entire license list is stored as a gzip+base64-encoded JSON blob

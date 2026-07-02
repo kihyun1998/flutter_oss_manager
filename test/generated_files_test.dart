@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_oss_manager/src/generated_files.dart';
 import 'package:flutter_oss_manager/src/models/oss_license.dart';
 import 'package:flutter_oss_manager/src/payload_codec.dart';
+import 'package:flutter_oss_manager/src/version.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -33,6 +34,14 @@ void main() {
     expect(main, contains('void close()'));
     expect(main, contains('if (dart.library.io)'));
     expect(main, contains('if (dart.library.js_interop)'));
+  });
+
+  test('every file header stamps the current package version', () {
+    final files = renderGeneratedFiles([sample], 'lib/oss_licenses.g.dart');
+    for (final f in files.all) {
+      expect(f.content, contains('// flutter_oss_manager: $packageVersion'),
+          reason: f.path);
+    }
   });
 
   test('main file exposes the scoped use() helper', () {

@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
-// flutter_oss_manager: 2.0.0
-// content-hash: crc32:0c3a5826
+// flutter_oss_manager: 2.2.0
+// content-hash: crc32:b08c6e00
 // ignore_for_file: type=lint
 
 import 'dart:async';

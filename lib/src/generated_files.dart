@@ -4,6 +4,7 @@ import 'package:path/path.dart' as p;
 
 import 'models/oss_license.dart';
 import 'payload_codec.dart';
+import 'version.dart';
 
 /// One generated Dart file: its target [path] and full [content]. The
 /// content-hash (crc32) is embedded inside [content], not exposed separately.
@@ -60,7 +61,6 @@ GeneratedFiles renderGeneratedFiles(
   );
 }
 
-const String _generatorVersion = '2.0.0';
 const String _hashPlaceholderLine = '// content-hash: crc32:00000000';
 
 /// Replaces the `crc32:00000000` placeholder in the header with the actual
@@ -78,7 +78,7 @@ String _buildMainFileContent(SidecarPaths paths, String payload) {
   final ioName = p.basename(paths.io);
   final webName = p.basename(paths.web);
   return '''// GENERATED CODE - DO NOT MODIFY BY HAND
-// flutter_oss_manager: $_generatorVersion
+// flutter_oss_manager: $packageVersion
 $_hashPlaceholderLine
 // ignore_for_file: type=lint
 //
@@ -221,7 +221,7 @@ class OssLicenses {
 }
 
 String _buildStubContent() => '''// GENERATED CODE - DO NOT MODIFY BY HAND
-// flutter_oss_manager: $_generatorVersion
+// flutter_oss_manager: $packageVersion
 $_hashPlaceholderLine
 // ignore_for_file: type=lint
 
@@ -236,7 +236,7 @@ Future<Uint8List> decodeGzipBase64(String encoded) =>
 ''';
 
 String _buildIoContent() => '''// GENERATED CODE - DO NOT MODIFY BY HAND
-// flutter_oss_manager: $_generatorVersion
+// flutter_oss_manager: $packageVersion
 $_hashPlaceholderLine
 // ignore_for_file: type=lint
 
@@ -253,7 +253,7 @@ Future<Uint8List> decodeGzipBase64(String encoded) async {
 ''';
 
 String _buildWebContent() => '''// GENERATED CODE - DO NOT MODIFY BY HAND
-// flutter_oss_manager: $_generatorVersion
+// flutter_oss_manager: $packageVersion
 $_hashPlaceholderLine
 // ignore_for_file: type=lint
 
