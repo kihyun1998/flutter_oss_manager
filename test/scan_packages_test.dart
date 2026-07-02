@@ -64,7 +64,8 @@ void main() {
   void writeLock(String body) =>
       File(p.join(project.path, 'pubspec.lock')).writeAsStringSync(body);
 
-  void writeHosted(String name, String ver, {String? license, String? pubspec}) {
+  void writeHosted(String name, String ver,
+      {String? license, String? pubspec}) {
     final dir = Directory(p.join(cache.path, 'hosted', 'pub.dev', '$name-$ver'))
       ..createSync(recursive: true);
     if (license != null) {
@@ -84,7 +85,8 @@ void main() {
     return decodePayloadForTesting(payload);
   }
 
-  test('scans a hosted package end-to-end and writes decodable files', () async {
+  test('scans a hosted package end-to-end and writes decodable files',
+      () async {
     writeLock('''
 packages:
   foo:
@@ -195,7 +197,8 @@ packages:
 
     await LicenseGenerator(
       offline: true,
-      sdkProbe: _FakeProbe(FlutterSdkInfo(root: sdkRoot.path, version: '3.99.0')),
+      sdkProbe:
+          _FakeProbe(FlutterSdkInfo(root: sdkRoot.path, version: '3.99.0')),
     ).scanPackages(
       projectRoot: project.path,
       pubCacheDir: cache.path,
