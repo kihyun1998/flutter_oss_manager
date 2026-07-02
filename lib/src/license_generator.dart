@@ -221,6 +221,7 @@ class LicenseGenerator {
     String? outputFilePath,
     bool runtimeOnly = false,
     String? projectRoot,
+    String? pubCacheDir,
   }) async {
     final root = projectRoot ?? Directory.current.path;
     print('Scanning packages for licenses...');
@@ -245,7 +246,7 @@ class LicenseGenerator {
     // absent) on every plain scan — including pure-hosted/pure-Dart projects
     // that never touched it before. Resolve it only when runtime-only asks.
     final locator = PackageLocator(
-      pubCachePath: _getPubCacheDir(),
+      pubCachePath: pubCacheDir ?? _getPubCacheDir(),
       flutterSdkPath: runtimeOnly ? (await _sdkProbe.probe())?.root : null,
       projectRoot: root,
     );
