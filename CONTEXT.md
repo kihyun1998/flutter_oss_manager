@@ -19,9 +19,11 @@ patterns, keywords, and priority used to heuristically identify a license.
 
 ### License matcher
 
-The logic that decides which SPDX identifier a raw license text corresponds to,
-by scoring it against the license templates (heuristic) and, as a fallback,
-Jaccard paragraph similarity. Should return a result value, not print.
+Decides which SPDX identifier a raw license text corresponds to. The pure
+top-level `matchLicense(text)` scores the text against the license templates
+(heuristic) and, as a fallback, by Jaccard paragraph similarity, returning a
+`MatchResult { spdx, method, confidence }` — a decision record, never printing.
+`MatchMethod` is `heuristic`, `similarity`, or `none` (the `Unknown` outcome).
 
 ### SPDX resolution
 

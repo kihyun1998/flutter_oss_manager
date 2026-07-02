@@ -8,9 +8,8 @@ import 'package:yaml/yaml.dart';
 import 'dependency_graph.dart';
 import 'generated_files.dart';
 import 'license_cache.dart';
-import 'models/all_licenses.dart';
+import 'license_matcher.dart';
 import 'models/oss_license.dart';
-import 'models/template_license_info.dart';
 import 'package_locator.dart';
 import 'pub_license_client.dart';
 
@@ -48,7 +47,6 @@ class LicenseGenerator {
   /// duplicate the pub-cache layout.
   PackageLocator? _packageLocator;
 
-  final Map<String, TemplateLicenseInfo> _licensesMap = allLicenses;
   static const List<String> _licenseFileNames = [
     'LICENSE',
     'LICENSE.txt',
@@ -70,130 +68,6 @@ class LicenseGenerator {
 
   String _readLicenseFile(String filePath) {
     return File(filePath).readAsStringSync();
-  }
-
-  Set<String> _tokenize(String text) {
-    return text
-        .toLowerCase()
-        .split(RegExp(r'[^a-z0-9]+'))
-        .where((s) => s.isNotEmpty)
-        .toSet();
-  }
-
-  double _calculateJaccardSimilarity(Set<String> set1, Set<String> set2) {
-    if (set1.isEmpty && set2.isEmpty) return 1.0;
-    if (set1.isEmpty || set2.isEmpty) return 0.0;
-
-    final intersection = set1.intersection(set2).length;
-    final union = set1.union(set2).length;
-
-    return intersection / union;
-  }
-
-  String _normalizeText(String text) {
-    // Remove copyright lines and email addresses
-    text = text.replaceAll(
-        RegExp(r'copyright \(c\) .+', caseSensitive: false, multiLine: true),
-        '');
-    text = text.replaceAll(
-        RegExp(r'<[^>]+>'), ''); // Remove text in angle brackets like emails
-    // Standardize whitespace
-    text = text.replaceAll(RegExp(r'\s+'), ' ').trim();
-    return text;
-  }
-
-  String _summarizeLicense(String licenseContent) {
-    // Step 1: 새로운 휴리스틱 매칭 시도 (우선순위 순)
-    final licensesByPriority = getLicensesByPriority();
-
-    List<Map<String, dynamic>> heuristicResults = [];
-
-    for (final licenseInfo in licensesByPriority) {
-      final score = licenseInfo.calculateScore(licenseContent);
-
-      if (score['matches'] >= licenseInfo.minMatches) {
-        heuristicResults.add({
-          'licenseId': licenseInfo.licenseId,
-          'confidence': score['confidence'],
-          'matches': score['matches'],
-          'matchedPatterns': score['matchedPatterns'],
-        });
-
-        print(
-            '  Matched via new heuristic: ${licenseInfo.licenseId} (${score['confidence'].toStringAsFixed(1)}% confidence, ${score['matches']} matches)');
-      }
-    }
-
-    // 신뢰도순으로 정렬
-    heuristicResults.sort((a, b) => b['confidence'].compareTo(a['confidence']));
-
-    // 가장 높은 신뢰도 결과 반환
-    if (heuristicResults.isNotEmpty) {
-      final bestResult = heuristicResults.first;
-      print(
-          '  Best heuristic match: ${bestResult['licenseId']} with ${bestResult['confidence'].toStringAsFixed(1)}% confidence');
-      return bestResult['licenseId'];
-    }
-
-    // Step 2: 휴리스틱 매칭이 실패한 경우, 기존 유사도 기반 매칭 사용
-    print('  No heuristic match found, trying similarity matching...');
-
-    final scannedParagraphs = _normalizeText(licenseContent)
-        .split(RegExp(r'\n\s*\n'))
-        .where((p) => p.isNotEmpty)
-        .toList();
-    if (scannedParagraphs.isEmpty) {
-      return 'Unknown';
-    }
-
-    String bestMatch = 'Unknown';
-    double highestAverageSimilarity = 0.0;
-
-    for (final licenseEntry in _licensesMap.entries) {
-      final templateParagraphs = _normalizeText(licenseEntry.value.licenseText)
-          .split(RegExp(r'\n\s*\n'))
-          .where((p) => p.isNotEmpty)
-          .toList();
-      if (templateParagraphs.isEmpty) {
-        continue;
-      }
-
-      final templateParagraphTokens =
-          templateParagraphs.map(_tokenize).toList();
-      double totalSimilarity = 0;
-
-      for (final scannedParagraph in scannedParagraphs) {
-        final scannedTokens = _tokenize(scannedParagraph);
-        double maxSimilarityForParagraph = 0;
-
-        for (final templateTokens in templateParagraphTokens) {
-          final similarity =
-              _calculateJaccardSimilarity(scannedTokens, templateTokens);
-          if (similarity > maxSimilarityForParagraph) {
-            maxSimilarityForParagraph = similarity;
-          }
-        }
-        totalSimilarity += maxSimilarityForParagraph;
-      }
-
-      final averageSimilarity = totalSimilarity / scannedParagraphs.length;
-
-      if (averageSimilarity > highestAverageSimilarity) {
-        highestAverageSimilarity = averageSimilarity;
-        bestMatch = licenseEntry.key;
-      }
-    }
-
-    // Step 3: 최종 결정
-    if (highestAverageSimilarity > 0.5) {
-      print(
-          '  Matched via similarity: $bestMatch (${(highestAverageSimilarity * 100).toStringAsFixed(1)}%)');
-      return bestMatch;
-    }
-
-    print(
-        '  No match found (best similarity: ${(highestAverageSimilarity * 100).toStringAsFixed(1)}%)');
-    return 'Unknown';
   }
 
   /// Computes the runtime-reachable subset of [entries] by walking the
@@ -269,7 +143,7 @@ class LicenseGenerator {
       }
     }
 
-    final heuristic = _summarizeLicense(licenseText);
+    final heuristic = matchLicense(licenseText).spdx;
     final source =
         heuristic == 'Unknown' ? CacheSource.negative : CacheSource.heuristic;
     cache?.put(
@@ -323,7 +197,7 @@ class LicenseGenerator {
       return;
     }
     final licenseContent = _readLicenseFile(licenseFilePath);
-    final licenseSummary = _summarizeLicense(licenseContent);
+    final licenseSummary = matchLicense(licenseContent).spdx;
 
     final license = OssLicense(
       name: p.basenameWithoutExtension(licenseFilePath),
@@ -559,7 +433,7 @@ class LicenseGenerator {
 
     if (licenseFile.existsSync()) {
       final licenseContent = licenseFile.readAsStringSync();
-      final licenseSummary = _summarizeLicense(licenseContent);
+      final licenseSummary = matchLicense(licenseContent).spdx;
       print('  → $licenseSummary [heuristic]');
       return OssLicense(
           name: packageName,
