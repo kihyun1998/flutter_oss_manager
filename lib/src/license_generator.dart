@@ -241,9 +241,14 @@ class LicenseGenerator {
     final packages = pubspecLockMap['packages'] as YamlMap?;
     var entries = packages?.entries.toList() ?? const <MapEntry>[];
 
+    // Only the runtime-only dependency walk needs the Flutter SDK path; the
+    // hosted-license lookup uses pubCacheDir alone. Probing the SDK eagerly
+    // would spawn `flutter --version` (and print an error when Flutter is
+    // absent) on every plain scan — including pure-hosted/pure-Dart projects
+    // that never touched it before. Resolve it only when runtime-only asks.
     _packageLocator = PackageLocator(
       pubCachePath: _getPubCacheDir(),
-      flutterSdkPath: await _getFlutterSdkPath(),
+      flutterSdkPath: runtimeOnly ? await _getFlutterSdkPath() : null,
       projectRoot: Directory.current.path,
     );
 
