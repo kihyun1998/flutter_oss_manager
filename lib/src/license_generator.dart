@@ -11,6 +11,7 @@ import 'license_cache.dart';
 import 'models/all_licenses.dart';
 import 'models/oss_license.dart';
 import 'models/template_license_info.dart';
+import 'package_locator.dart';
 import 'pub_license_client.dart';
 
 /// Result of the 3-stage SPDX resolution pipeline.
@@ -40,6 +41,12 @@ class LicenseGenerator {
   final LicenseCache? _cache;
   final bool _offline;
   final int _concurrency;
+
+  /// Single authority on where dependencies live on disk, shared by the
+  /// runtime dependency reader and the hosted-license lookup. Built once per
+  /// [scanPackages] run (env roots resolved once), so the two no longer
+  /// duplicate the pub-cache layout.
+  PackageLocator? _packageLocator;
 
   final Map<String, TemplateLicenseInfo> _licensesMap = allLicenses;
   static const List<String> _licenseFileNames = [
@@ -360,6 +367,12 @@ class LicenseGenerator {
     final packages = pubspecLockMap['packages'] as YamlMap?;
     var entries = packages?.entries.toList() ?? const <MapEntry>[];
 
+    _packageLocator = PackageLocator(
+      pubCachePath: _getPubCacheDir(),
+      flutterSdkPath: await _getFlutterSdkPath(),
+      projectRoot: Directory.current.path,
+    );
+
     if (runtimeOnly) {
       final rootPubspecFile =
           File(p.join(Directory.current.path, 'pubspec.yaml'));
@@ -369,11 +382,7 @@ class LicenseGenerator {
       }
       final rootPubspec =
           loadYaml(rootPubspecFile.readAsStringSync()) as YamlMap;
-      final reader = FilePubspecReader(
-        pubCachePath: _getPubCacheDir(),
-        flutterSdkPath: await _getFlutterSdkPath(),
-        projectRoot: Directory.current.path,
-      );
+      final reader = FilePubspecReader(locator: _packageLocator!);
       entries = await filterToRuntimeEntries(
         entries: entries,
         rootPubspec: rootPubspec,
@@ -454,7 +463,7 @@ class LicenseGenerator {
     if (source == 'hosted') {
       final packageVersion = packageInfo['version'].toString();
       print('- $packageName ($packageVersion) [hosted]');
-      return _findAndSummarizeHostedLicense(packageName, packageVersion);
+      return _findAndSummarizeHostedLicense(packageName, packageInfo);
     } else if (source == 'sdk') {
       print('- $packageName [sdk]');
       return _findAndSummarizeSdkLicense(packageName);
@@ -465,10 +474,15 @@ class LicenseGenerator {
   }
 
   Future<OssLicense?> _findAndSummarizeHostedLicense(
-      String packageName, String packageVersion) async {
-    final pubCacheDir = _getPubCacheDir();
-    final packagePath = p.join(
-        pubCacheDir, 'hosted', 'pub.dev', '$packageName-$packageVersion');
+      String packageName, YamlMap lockEntry) async {
+    final packageVersion = lockEntry['version'].toString();
+    final dir = await _packageLocator!
+        .packageRootDir(name: packageName, lockEntry: lockEntry);
+    if (dir == null) {
+      print('  No license file found for $packageName');
+      return null;
+    }
+    final packagePath = dir.path;
 
     String? repositoryUrl;
     String? description;

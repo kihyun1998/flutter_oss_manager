@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_oss_manager/src/dependency_graph.dart';
+import 'package:flutter_oss_manager/src/package_locator.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 import 'package:yaml/yaml.dart';
@@ -33,9 +34,11 @@ void main() {
     projectRoot = p.join(tmp.path, 'project');
     Directory(projectRoot).createSync(recursive: true);
     reader = FilePubspecReader(
-      pubCachePath: pubCache,
-      flutterSdkPath: flutterSdk,
-      projectRoot: projectRoot,
+      locator: PackageLocator(
+        pubCachePath: pubCache,
+        flutterSdkPath: flutterSdk,
+        projectRoot: projectRoot,
+      ),
     );
   });
 
@@ -124,9 +127,11 @@ description: { name: args, url: "https://pub.dev" }
 
     test('flutterSdkPath null returns null for sdk source', () async {
       final nullSdkReader = FilePubspecReader(
-        pubCachePath: pubCache,
-        flutterSdkPath: null,
-        projectRoot: projectRoot,
+        locator: PackageLocator(
+          pubCachePath: pubCache,
+          flutterSdkPath: null,
+          projectRoot: projectRoot,
+        ),
       );
 
       final result = await nullSdkReader.read(
