@@ -5,6 +5,11 @@ import 'dart:io';
 /// Looks up the SPDX license identifier of a pub.dev package.
 abstract class PubLicenseClient {
   Future<String?> fetchSpdxId(String name, String version);
+
+  /// Releases any resources held for reuse across lookups (e.g. a pooled
+  /// connection). Safe to call more than once; a later [fetchSpdxId] may
+  /// transparently re-acquire what it needs.
+  void close();
 }
 
 /// Maps the lowercase SPDX identifiers that pana emits to their canonical
@@ -74,10 +79,23 @@ class HttpPubLicenseClient implements PubLicenseClient {
   /// `HttpServer` without actually hitting pub.dev.
   final Uri baseUri;
 
+  /// One reusable client for the whole batch, so connections to pub.dev are
+  /// kept alive across lookups instead of being torn down per package.
+  /// Recreated on demand after [close].
+  HttpClient? _client;
+
+  HttpClient get _http => _client ??= HttpClient();
+
+  @override
+  void close() {
+    _client?.close(force: true);
+    _client = null;
+  }
+
   @override
   Future<String?> fetchSpdxId(String name, String version) async {
     final uri = baseUri.replace(path: '/api/packages/$name/score');
-    final client = HttpClient();
+    final client = _http;
     try {
       final request = await client.getUrl(uri).timeout(timeout);
       request.headers.set(HttpHeaders.userAgentHeader, userAgent);
@@ -101,8 +119,6 @@ class HttpPubLicenseClient implements PubLicenseClient {
       return null;
     } on FormatException {
       return null;
-    } finally {
-      client.close(force: true);
     }
   }
 }

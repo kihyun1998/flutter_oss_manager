@@ -84,8 +84,10 @@ class PackageLocator {
       Directory(p.join(root, 'packages', name)),
       Directory(p.join(root, 'bin', 'cache', 'pkg', name)),
     ];
+    // Select by the presence of a `pubspec.yaml` — the marker that a candidate
+    // directory is actually the package root — not by the directory alone.
     for (final dir in candidates) {
-      if (await dir.exists()) return dir;
+      if (await File(p.join(dir.path, 'pubspec.yaml')).exists()) return dir;
     }
     return null;
   }

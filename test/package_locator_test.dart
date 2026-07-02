@@ -56,9 +56,10 @@ void main() {
   });
 
   group('sdk source', () {
-    test('resolves <sdk>/packages/<name> when that directory exists', () async {
-      Directory(p.join(flutterSdk, 'packages', 'flutter'))
-          .createSync(recursive: true);
+    test('resolves <sdk>/packages/<name> when it holds a pubspec', () async {
+      final pkgDir = p.join(flutterSdk, 'packages', 'flutter');
+      Directory(pkgDir).createSync(recursive: true);
+      File(p.join(pkgDir, 'pubspec.yaml')).writeAsStringSync('name: flutter\n');
       final dir = await locator.packageRootDir(
         name: 'flutter',
         lockEntry: _y('source: sdk\ndescription: flutter\nversion: "0.0.0"'),
@@ -68,14 +69,29 @@ void main() {
     });
 
     test('falls back to <sdk>/bin/cache/pkg/<name>', () async {
-      Directory(p.join(flutterSdk, 'bin', 'cache', 'pkg', 'sky_engine'))
-          .createSync(recursive: true);
+      final pkgDir = p.join(flutterSdk, 'bin', 'cache', 'pkg', 'sky_engine');
+      Directory(pkgDir).createSync(recursive: true);
+      File(p.join(pkgDir, 'pubspec.yaml'))
+          .writeAsStringSync('name: sky_engine\n');
       final dir = await locator.packageRootDir(
         name: 'sky_engine',
         lockEntry: _y('source: sdk\ndescription: flutter\nversion: "0.0.0"'),
       );
       expect(dir, isNotNull);
-      expect(dir!.path, p.join(flutterSdk, 'bin', 'cache', 'pkg', 'sky_engine'));
+      expect(
+          dir!.path, p.join(flutterSdk, 'bin', 'cache', 'pkg', 'sky_engine'));
+    });
+
+    test('candidate directory without a pubspec.yaml → null (not selected)',
+        () async {
+      // The directory exists but is not a package root — must be skipped.
+      Directory(p.join(flutterSdk, 'packages', 'flutter'))
+          .createSync(recursive: true);
+      final dir = await locator.packageRootDir(
+        name: 'flutter',
+        lockEntry: _y('source: sdk\ndescription: flutter\nversion: "0.0.0"'),
+      );
+      expect(dir, isNull);
     });
 
     test('no matching candidate directory → null', () async {
@@ -113,8 +129,8 @@ description:
 '''),
       );
       expect(dir, isNotNull);
-      expect(p.equals(dir!.path, p.join(projectRoot, '..', 'sibling_pkg')),
-          isTrue,
+      expect(
+          p.equals(dir!.path, p.join(projectRoot, '..', 'sibling_pkg')), isTrue,
           reason: dir.path);
     });
 

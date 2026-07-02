@@ -18,6 +18,9 @@ class FakePubLicenseClient implements PubLicenseClient {
     calls.add('$name@$version');
     return responses['$name@$version'];
   }
+
+  @override
+  void close() {}
 }
 
 /// A multi-paragraph MIT license body that the existing heuristic matches

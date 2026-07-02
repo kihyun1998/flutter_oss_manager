@@ -50,6 +50,15 @@ Produced as **data** by a pure renderer (`renderGeneratedFiles`), so the file
 format is verifiable without writing to disk; the caller performs the actual
 write. Each file's content already has its `content-hash` (crc32) embedded.
 
+### Flutter SDK probe
+
+Resolves the Flutter SDK's root path and framework version in a single
+`flutter --version --machine` call, memoized so the subprocess spawns at most
+once per run (`FlutterSdkProbe.probe()` → `FlutterSdkInfo{root, version}`, or
+`null` when Flutter is absent). Injected into `LicenseGenerator`; the process
+call is itself injectable so parsing and memoization are testable without a
+real Flutter install.
+
 ### Runtime dependency graph
 
 The BFS over `dependencies:` (never `dev_dependencies:`) from the root pubspec,

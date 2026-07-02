@@ -1,11 +1,11 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
 import 'package:yaml/yaml.dart';
 
 import 'dependency_graph.dart';
+import 'flutter_sdk_probe.dart';
 import 'generated_files.dart';
 import 'license_cache.dart';
 import 'license_matcher.dart';
@@ -31,21 +31,18 @@ class LicenseGenerator {
     LicenseCache? cache,
     bool offline = false,
     int concurrency = 8,
+    FlutterSdkProbe? sdkProbe,
   })  : _pubClient = pubClient ?? HttpPubLicenseClient(),
         _cache = cache,
         _offline = offline,
-        _concurrency = concurrency;
+        _concurrency = concurrency,
+        _sdkProbe = sdkProbe ?? ProcessFlutterSdkProbe();
 
   final PubLicenseClient _pubClient;
   final LicenseCache? _cache;
   final bool _offline;
   final int _concurrency;
-
-  /// Single authority on where dependencies live on disk, shared by the
-  /// runtime dependency reader and the hosted-license lookup. Built once per
-  /// [scanPackages] run (env roots resolved once), so the two no longer
-  /// duplicate the pub-cache layout.
-  PackageLocator? _packageLocator;
+  final FlutterSdkProbe _sdkProbe;
 
   static const List<String> _licenseFileNames = [
     'LICENSE',
@@ -223,10 +220,11 @@ class LicenseGenerator {
   Future<void> scanPackages({
     String? outputFilePath,
     bool runtimeOnly = false,
+    String? projectRoot,
   }) async {
+    final root = projectRoot ?? Directory.current.path;
     print('Scanning packages for licenses...');
-    final pubspecLockFile =
-        File(p.join(Directory.current.path, 'pubspec.lock'));
+    final pubspecLockFile = File(p.join(root, 'pubspec.lock'));
     if (!pubspecLockFile.existsSync()) {
       print('Error: pubspec.lock not found. Run \'flutter pub get\' first.');
       return;
@@ -246,22 +244,21 @@ class LicenseGenerator {
     // would spawn `flutter --version` (and print an error when Flutter is
     // absent) on every plain scan — including pure-hosted/pure-Dart projects
     // that never touched it before. Resolve it only when runtime-only asks.
-    _packageLocator = PackageLocator(
+    final locator = PackageLocator(
       pubCachePath: _getPubCacheDir(),
-      flutterSdkPath: runtimeOnly ? await _getFlutterSdkPath() : null,
-      projectRoot: Directory.current.path,
+      flutterSdkPath: runtimeOnly ? (await _sdkProbe.probe())?.root : null,
+      projectRoot: root,
     );
 
     if (runtimeOnly) {
-      final rootPubspecFile =
-          File(p.join(Directory.current.path, 'pubspec.yaml'));
+      final rootPubspecFile = File(p.join(root, 'pubspec.yaml'));
       if (!rootPubspecFile.existsSync()) {
         print('Error: pubspec.yaml not found at project root.');
         return;
       }
       final rootPubspec =
           loadYaml(rootPubspecFile.readAsStringSync()) as YamlMap;
-      final reader = FilePubspecReader(locator: _packageLocator!);
+      final reader = FilePubspecReader(locator: locator);
       entries = await filterToRuntimeEntries(
         entries: entries,
         rootPubspec: rootPubspec,
@@ -274,15 +271,20 @@ class LicenseGenerator {
 
     // Process in fixed-size batches so that hosted packages hit pub.dev
     // concurrently (capped at [_concurrency]) without flooding the API or
-    // reordering the output list.
-    for (var i = 0; i < entries.length; i += _concurrency) {
-      final end = (i + _concurrency) < entries.length
-          ? i + _concurrency
-          : entries.length;
-      await Future.wait([
-        for (var j = i; j < end; j++)
-          _scanOne(entries[j]).then((lic) => results[j] = lic),
-      ]);
+    // reordering the output list. Close the pub client once the batch is
+    // done — one keep-alive connection served the whole scan.
+    try {
+      for (var i = 0; i < entries.length; i += _concurrency) {
+        final end = (i + _concurrency) < entries.length
+            ? i + _concurrency
+            : entries.length;
+        await Future.wait([
+          for (var j = i; j < end; j++)
+            _scanOne(entries[j], locator).then((lic) => results[j] = lic),
+        ]);
+      }
+    } finally {
+      _pubClient.close();
     }
 
     final List<OssLicense> collectedLicenses = [
@@ -310,7 +312,7 @@ class LicenseGenerator {
 
     if (outputFilePath != null) {
       _writeGeneratedFiles(
-        p.join(Directory.current.path, outputFilePath),
+        p.join(root, outputFilePath),
         collectedLicenses,
       );
     } else {
@@ -318,14 +320,15 @@ class LicenseGenerator {
     }
   }
 
-  Future<OssLicense?> _scanOne(MapEntry<dynamic, dynamic> entry) async {
+  Future<OssLicense?> _scanOne(
+      MapEntry<dynamic, dynamic> entry, PackageLocator locator) async {
     // Capture every [print] emitted while processing this one package into a
     // buffer, then flush the buffer as a single atomic write. Without this,
     // parallel batch workers interleave their "- name (ver)" headers and
     // "  → spdx [source]" results, making the log unreadable.
     final buf = StringBuffer();
     final result = await runZoned<Future<OssLicense?>>(
-      () => _scanOneInner(entry),
+      () => _scanOneInner(entry, locator),
       zoneSpecification: ZoneSpecification(
         print: (_, __, ___, line) => buf.writeln(line),
       ),
@@ -334,7 +337,8 @@ class LicenseGenerator {
     return result;
   }
 
-  Future<OssLicense?> _scanOneInner(MapEntry<dynamic, dynamic> entry) async {
+  Future<OssLicense?> _scanOneInner(
+      MapEntry<dynamic, dynamic> entry, PackageLocator locator) async {
     final packageName = entry.key.toString();
     final packageInfo = entry.value as YamlMap;
     final source = packageInfo['source'].toString();
@@ -342,7 +346,7 @@ class LicenseGenerator {
     if (source == 'hosted') {
       final packageVersion = packageInfo['version'].toString();
       print('- $packageName ($packageVersion) [hosted]');
-      return _findAndSummarizeHostedLicense(packageName, packageInfo);
+      return _findAndSummarizeHostedLicense(packageName, packageInfo, locator);
     } else if (source == 'sdk') {
       print('- $packageName [sdk]');
       return _findAndSummarizeSdkLicense(packageName);
@@ -353,10 +357,10 @@ class LicenseGenerator {
   }
 
   Future<OssLicense?> _findAndSummarizeHostedLicense(
-      String packageName, YamlMap lockEntry) async {
+      String packageName, YamlMap lockEntry, PackageLocator locator) async {
     final packageVersion = lockEntry['version'].toString();
-    final dir = await _packageLocator!
-        .packageRootDir(name: packageName, lockEntry: lockEntry);
+    final dir =
+        await locator.packageRootDir(name: packageName, lockEntry: lockEntry);
     if (dir == null) {
       print('  No license file found for $packageName');
       return null;
@@ -399,30 +403,18 @@ class LicenseGenerator {
   }
 
   Future<OssLicense?> _findAndSummarizeSdkLicense(String packageName) async {
-    final flutterSdkPath = await _getFlutterSdkPath();
-    if (flutterSdkPath == null) {
+    // One memoized probe yields both the SDK root and its version.
+    final sdk = await _sdkProbe.probe();
+    if (sdk == null) {
       print('  Flutter SDK path not found.');
       return null;
     }
 
-    final licenseFilePath = p.join(flutterSdkPath, 'LICENSE');
-    final licenseFile = File(licenseFilePath);
+    final licenseFile = File(p.join(sdk.root, 'LICENSE'));
+    final sdkVersion = sdk.version;
 
     String? repositoryUrl;
     String? description;
-    String sdkVersion = '0.0.0';
-
-    try {
-      final result = await Process.run(
-          Platform.isWindows ? 'flutter.bat' : 'flutter',
-          ['--version', '--machine']);
-      if (result.exitCode == 0) {
-        final jsonOutput = jsonDecode(result.stdout.toString());
-        sdkVersion = jsonOutput['frameworkVersion'];
-      }
-    } catch (e) {
-      print('Error getting Flutter SDK version: $e');
-    }
 
     if (packageName == 'flutter') {
       repositoryUrl = 'https://github.com/flutter/flutter';
@@ -458,20 +450,6 @@ class LicenseGenerator {
     } else {
       return p.join(Platform.environment['HOME']!, '.pub-cache');
     }
-  }
-
-  Future<String?> _getFlutterSdkPath() async {
-    try {
-      final executable = Platform.isWindows ? 'flutter.bat' : 'flutter';
-      final result = await Process.run(executable, ['--version', '--machine']);
-      if (result.exitCode == 0) {
-        final jsonOutput = jsonDecode(result.stdout.toString());
-        return jsonOutput['flutterRoot'];
-      }
-    } catch (e) {
-      print('Error getting Flutter SDK path: $e');
-    }
-    return null;
   }
 
   /// Prints prominent warnings for packages with potentially problematic licenses.

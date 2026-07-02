@@ -130,6 +130,23 @@ void main() {
       expect(await client.fetchSpdxId('unlicensed', '1.0.0'), isNull);
     });
 
+    test('serves multiple calls and survives close() (lazy recreate)',
+        () async {
+      bodyMap['/api/packages/a/score'] = jsonEncode({
+        'tags': ['license:mit']
+      });
+      bodyMap['/api/packages/b/score'] = jsonEncode({
+        'tags': ['license:apache-2.0']
+      });
+      final client = HttpPubLicenseClient(baseUri: base);
+      expect(await client.fetchSpdxId('a', '1.0.0'), 'MIT');
+      expect(await client.fetchSpdxId('b', '1.0.0'), 'Apache-2.0');
+      client.close();
+      client.close(); // idempotent
+      // A fetch after close lazily recreates the underlying client.
+      expect(await client.fetchSpdxId('a', '1.0.0'), 'MIT');
+    });
+
     test('User-Agent header is sent', () async {
       bodyMap['/api/packages/ua/score'] = jsonEncode({
         'tags': ['license:mit']
