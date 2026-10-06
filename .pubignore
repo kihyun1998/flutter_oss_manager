@@ -6,7 +6,7 @@ coverage/
 
 # Dev/meta docs, planning notes, and CI — not part of the published package.
 docs/
-CONTEXT.md
+GLOSSARY.md
 CODE.md
 *_plan.md
 test_license.txt
