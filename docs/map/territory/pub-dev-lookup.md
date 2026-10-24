@@ -31,4 +31,4 @@ From the source and README "License Detection":
 
 ## Known holes / open
 - The score is for the latest version, not the scanned one; a package that changed license between versions is reported with the latest license. Tracked: #11
-- Whether pana emits `license:gpl-3.0` or the current SPDX `license:gpl-3.0-only` form is not confirmed; `_spdxCanonical` only knows the former.
+- Whether pana emits `license:gpl-3.0` or the current SPDX `license:gpl-3.0-only` form is not confirmed; `_spdxCanonical` only knows the former. Tracked: #19

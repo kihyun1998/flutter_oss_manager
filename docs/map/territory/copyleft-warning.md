@@ -25,4 +25,4 @@ From the source:
 - [scan-pipeline](scan-pipeline.md) — fed from its collected list.
 
 ## Known holes / open
-- `GPL-3.0-only`, `GPL-2.0-or-later` and other current SPDX forms are not in the list, so a pub.dev answer in that form would not warn. No exit code a CI could gate on.
+- `GPL-3.0-only`, `GPL-2.0-or-later` and other current SPDX forms are not in the list, so a pub.dev answer in that form would not warn (tracked: #19). No exit code a CI could gate on.

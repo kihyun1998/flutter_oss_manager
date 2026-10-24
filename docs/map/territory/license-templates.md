@@ -19,7 +19,7 @@ From the source:
 - `lib/src/models/licenses/*.dart`
 
 ## Reference behaviour
-- [SPDX License List](../../agents/thegraph.md) — binding for ids and canonical texts. The ids `GPL-2.0`, `GPL-3.0`, `LGPL-2.1`, `LGPL-3.0` are deprecated in the current SPDX list in favour of `-only` / `-or-later`; not yet compared against `spdx/license-list-data`.
+- [SPDX License List](../../agents/thegraph.md) — binding for ids and canonical texts. The ids `GPL-2.0`, `GPL-3.0`, `LGPL-2.1`, `LGPL-3.0` are deprecated in the current SPDX list in favour of `-only` / `-or-later`; not yet compared against `spdx/license-list-data`. Tracked: #19
 
 ## Cross-cutting invariants
 - [spdx-identifier-spelling](../invariant/spdx-identifier-spelling.md) — `licenseId` is one of its sites.

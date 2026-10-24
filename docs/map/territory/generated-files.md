@@ -33,4 +33,4 @@ From the glossary, ADR-0001 and the source:
 
 ## Known holes / open
 - If a `verify` command is ever added, ADR-0001 says to revisit (its Consequences).
-- The integrity test checks a committed file's hash against its own body, not against the current renderer; a stale committed file passes.
+- The integrity test checks a committed file's hash against its own body, not against the current renderer; a stale committed file passes. Tracked: #20
