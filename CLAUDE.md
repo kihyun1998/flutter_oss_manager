@@ -1,16 +1,8 @@
 ## Agent skills
 
-### Issue tracker
-
-Issues and specs live as GitHub Issues on `github.com/kihyun1998/flutter_oss_manager` (via the `gh` CLI). External PRs are **not** a triage surface. See `docs/agents/issue-tracker.md`.
-
-### Triage labels
-
-Uses the five canonical triage labels verbatim (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
-
-### Domain docs
-
-Single-context layout — one `GLOSSARY.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+- Before reading, filing, labelling or closing an issue, read `docs/agents/issue-tracker.md`.
+- Before applying a triage label, read `docs/agents/triage-labels.md`.
+- Before naming a domain concept or working in an area a decision record covers, read `docs/agents/domain.md`.
 
 ## Comments
 
