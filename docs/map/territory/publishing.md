@@ -28,5 +28,5 @@ From the source:
 - [ci](ci.md) — CI's Flutter pin and the pubspec's SDK floor (`>=3.4.0`) decide the format style ADR-0001 describes.
 
 ## Known holes / open
-- README's install snippet says `^2.2.0` while the package is at the version in `pubspec.yaml`. Tracked: #15
+- README's install snippet says `^2.2.0` while the package is at the version in `pubspec.yaml`.
 - No release automation; publishing is by hand.

@@ -30,5 +30,5 @@ From the glossary, the plan and the source:
 - [scan-pipeline](scan-pipeline.md) — the filtered list replaces the entry list.
 
 ## Known holes / open
-- pub workspaces are not supported: one root `pubspec.yaml` is assumed (README). Tracked: #17
+- pub workspaces are not supported: one root `pubspec.yaml` is assumed (README).
 - A `dependencies:` name absent from `pubspec.lock` is skipped without a note (`compute`: `lockEntry is! YamlMap → continue`).

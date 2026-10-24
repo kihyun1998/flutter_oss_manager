@@ -28,5 +28,5 @@ From the glossary and the source:
 - [runtime-dependency-graph](runtime-dependency-graph.md) — `FilePubspecReader` treats a `null` dir as a leaf, so a wrong path silently prunes the runtime set.
 
 ## Known holes / open
-- The hosted host is hard-coded to `pub.dev`; packages from another hosted server (private registry, `pub.flutter-io.cn` mirror) are not found. Tracked: #18
+- The hosted host is hard-coded to `pub.dev`; packages from another hosted server (private registry, `pub.flutter-io.cn` mirror) are not found.
 - The git checkout path `<name>-<resolved-ref>` is from pub's layout as read by the author (comment in `packageRootDir`), not checked against pub's source.
