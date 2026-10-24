@@ -2,7 +2,7 @@
 
 ### Issue tracker
 
-Issues and PRDs live as GitHub Issues on `github.com/kihyun1998/flutter_oss_manager` (via the `gh` CLI). External PRs are **not** a triage surface. See `docs/agents/issue-tracker.md`.
+Issues and specs live as GitHub Issues on `github.com/kihyun1998/flutter_oss_manager` (via the `gh` CLI). External PRs are **not** a triage surface. See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 
