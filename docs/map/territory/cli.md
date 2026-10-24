@@ -29,5 +29,5 @@ From reading the source (`bin/flutter_oss_manager.dart — main`):
 - [publishing](publishing.md) — the flag tables in README are hand-written copies of these options.
 
 ## Known holes / open
-- `scanPackages` calls `_cache?.load()` again after the CLI already called `load()` and `clear()` for `--refresh-cache`. `load()` clears and re-reads the file, so the `clear()` appears to be undone and `--refresh-cache` would serve the old entries. No test covers it, and it was not run: no Dart toolchain was available (found by reading, 2026-10-24).
+- `scanPackages` calls `_cache?.load()` again after the CLI already called `load()` and `clear()` for `--refresh-cache`. `load()` clears and re-reads the file, so the `clear()` appears to be undone and `--refresh-cache` would serve the old entries. No test covers it, and it was not run: no Dart toolchain was available (found by reading, 2026-10-24). Tracked: #9
 - `--verbose` does nothing.

@@ -19,7 +19,7 @@ Three independent string sets, none derived from another and no shared constant:
 One package reported under two spellings depending on whether pub.dev answered (`BSD-4-Clause` vs `bsd-4-clause`), or a copyleft license that does not warn. Reproduces whenever pub.dev returns a tag missing from `_spdxCanonical`.
 
 ## Discovery history
-- Found by reading, 2026-10-24: `BSD-4-Clause` is a template id, but `bsd-4-clause` is not a key in `_spdxCanonical`, so a pub.dev answer for it passes through lowercase. Live violation.
+- Found by reading, 2026-10-24: `BSD-4-Clause` is a template id, but `bsd-4-clause` is not a key in `_spdxCanonical`, so a pub.dev answer for it passes through lowercase. Live violation. Tracked: #10
 - `AGPL-3.0` is in `_problematicLicenses` and `_spdxCanonical` but has no template; it can only arrive from pub.dev.
 
 ## Where it will recur

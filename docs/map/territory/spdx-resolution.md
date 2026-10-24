@@ -31,5 +31,5 @@ From the source (`LicenseGenerator._resolveSpdx`):
 - [license-matcher](license-matcher.md) — its `Unknown` string is what makes an entry `negative`.
 
 ## Known holes / open
-- A heuristic or negative entry cached during an `--offline` run, or on any pub.dev miss (timeout, outage), is served on every later online scan; pub.dev is not asked again until `--refresh-cache`. Not intended (maintainer, 2026-10-24). `CacheSource` already records the source an invalidation policy would need (comment on `CacheSource`).
-- README "License Detection" says the heuristic is used when `--no-cache` was set; in the code `--no-cache` only skips the cache and still asks pub.dev.
+- A heuristic or negative entry cached during an `--offline` run, or on any pub.dev miss (timeout, outage), is served on every later online scan; pub.dev is not asked again until `--refresh-cache`. Not intended (maintainer, 2026-10-24). `CacheSource` already records the source an invalidation policy would need (comment on `CacheSource`). Tracked: #13
+- README "License Detection" says the heuristic is used when `--no-cache` was set; in the code `--no-cache` only skips the cache and still asks pub.dev. Tracked: #15

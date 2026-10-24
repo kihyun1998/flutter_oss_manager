@@ -29,4 +29,4 @@ From the source:
 - [cli](cli.md) — owns `load` / `clear` for `--refresh-cache` and skips the cache for `--no-cache`.
 
 ## Known holes / open
-- No invalidation by age or source; see [spdx-resolution](spdx-resolution.md).
+- No invalidation by age or source; see [spdx-resolution](spdx-resolution.md). Tracked: #13

@@ -30,4 +30,4 @@ From the glossary and the source:
 - [scan-pipeline](scan-pipeline.md) — SDK packages and `generate` use it directly.
 
 ## Known holes / open
-- Because `_normalizeText` collapses newlines before the paragraph split, the "paragraph" similarity compares whole texts; the 0.5 threshold was set against that behaviour, not against real paragraphs (found by reading, 2026-10-24).
+- Because `_normalizeText` collapses newlines before the paragraph split, the "paragraph" similarity compares whole texts; the 0.5 threshold was set against that behaviour, not against real paragraphs (found by reading, 2026-10-24). Tracked: #14

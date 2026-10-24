@@ -36,7 +36,7 @@ From reading the source:
 - [runtime-dependency-graph](runtime-dependency-graph.md) — filters the entry list before batching.
 
 ## Known holes / open
-- `path` and `git` dependencies are silently dropped from the output, though `PackageLocator` can find them. Not intended (maintainer, 2026-10-24).
+- `path` and `git` dependencies are silently dropped from the output, though `PackageLocator` can find them. Not intended (maintainer, 2026-10-24). Tracked: #12
 - `PUB_CACHE` is ignored; the cache dir is `$HOME/.pub-cache` or `%LOCALAPPDATA%\Pub\Cache` (`_getPubCacheDir`; README "Known limitations"). A missing `HOME` throws on the `!`.
 - pub workspaces (`resolution: workspace`) are not supported (README "Known limitations").
 - `generate` and `scanPackages` print errors and return instead of failing; the CLI exits 0 on a missing `pubspec.lock`.
