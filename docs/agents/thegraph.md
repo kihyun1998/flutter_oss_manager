@@ -10,3 +10,7 @@ A Flutter package + CLI that scans a project's dependencies, identifies each lic
 |---|---|---|---|
 | SPDX License List | how it works — license identifiers and canonical texts | `spdx/license-list-data` source tree — raw | binding |
 | pub.dev API | how it works — package metadata fetch | the published API docs — **summarized** | binding |
+
+## Release
+
+pub-ready
